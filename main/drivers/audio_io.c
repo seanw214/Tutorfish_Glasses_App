@@ -355,7 +355,7 @@ esp_err_t malloc_starting_phone_call_mode_00_wav(void)
     return ESP_OK;
 }
 
-esp_err_t malloc_attempt_wifi_conn_00_wav()
+esp_err_t malloc_attempt_wifi_conn_00_wav(void)
 {
     const char *audio_file_path = "/audio/attempt_wifi_conn_00.wav";
 
@@ -451,7 +451,7 @@ esp_err_t malloc_start_wifi_conn_00_wav(void)
     return ESP_OK;
 }
 
-esp_err_t malloc_home_instructions_00_wav()
+esp_err_t malloc_home_instructions_00_wav(void)
 {
     const char *audio_file_path = "/audio/home_instructions_00.wav";
 
@@ -499,7 +499,7 @@ esp_err_t malloc_home_instructions_00_wav()
     return ESP_OK;
 }
 
-esp_err_t malloc_returning_home_wav_sfx()
+esp_err_t malloc_returning_home_wav_sfx(void)
 {
     const char *audio_file_path = "/audio/returning_home.wav";
 
@@ -547,7 +547,7 @@ esp_err_t malloc_returning_home_wav_sfx()
     return ESP_OK;
 }
 
-esp_err_t malloc_home_sfx()
+esp_err_t malloc_home_sfx(void)
 {
     const char *audio_file_path = "/audio/home_sfx_00.wav";
 

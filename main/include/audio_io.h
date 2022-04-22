@@ -5,11 +5,11 @@ esp_err_t init_i2s(void);
 esp_err_t _i2s_stop(void);
 esp_err_t playback_audio_file(int16_t *audio_file_buf, int audio_file_len, float audio_volume, bool audio_playback_stoppable);
 
-esp_err_t malloc_home_sfx();
-esp_err_t malloc_returning_home_wav_sfx();
-esp_err_t malloc_home_instructions_00_wav();
+esp_err_t malloc_home_sfx(void);
+esp_err_t malloc_returning_home_wav_sfx(void);
+esp_err_t malloc_home_instructions_00_wav(void);
 
-esp_err_t malloc_attempt_wifi_conn_00_wav();
+esp_err_t malloc_attempt_wifi_conn_00_wav(void);
 esp_err_t malloc_start_wifi_conn_00_wav(void);
 esp_err_t malloc_starting_phone_call_mode_00_wav(void);
 esp_err_t malloc_start_phone_call_mode_00_wav(void);
