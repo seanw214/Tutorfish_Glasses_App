@@ -136,91 +136,6 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt)
     return ESP_OK;
 }
 
-size_t http_firmware_get_request(char *hostname, char *path, char *query, char *session_cookie)
-{
-    //char local_response_buffer[MAX_HTTP_OUTPUT_BUFFER] = {0};
-    char *local_response_buffer = malloc(MAX_HTTP_OUTPUT_BUFFER);
-    memset(local_response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER);
-
-    char version[18] = "version=";
-    strcat(version, query);
-
-    esp_http_client_config_t config = {
-        .host = hostname,
-        .path = path,
-        .query = version,
-        .event_handler = _http_event_handler,
-        .user_data = local_response_buffer, // Pass address of local buffer to get response
-        .disable_auto_redirect = true,
-        .user_agent = "SmartGlassesOS/1.0.0",
-        .buffer_size_tx = 2048 // fix HTTP_HEADER: Buffer length is small to fit all the headers error. https://www.reddit.com/r/esp32/comments/krwajq/esp32_http_post_fails_when_using_a_long_header/
-    };
-    esp_http_client_handle_t client = esp_http_client_init(&config);
-
-    esp_http_client_set_method(client, HTTP_METHOD_GET);
-
-    if (session_cookie != NULL)
-    {
-        esp_http_client_set_header(client, "Cookie", session_cookie);
-    }
-
-    // GET
-    esp_err_t err = esp_http_client_perform(client);
-    size_t http_status = esp_http_client_get_status_code(client);
-
-    if (err == ESP_OK)
-    {
-        ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %d", http_status, esp_http_client_get_content_length(client));
-
-        if (http_status == HttpStatus_Ok)
-        {
-            char url[100] = "http://nosystems-env.eba-mpgixwp9.us-east-1.elasticbeanstalk.com/download/firmware/";
-            strcat(url, local_response_buffer);
-            ESP_LOGI(TAG, "firmware url: %s", url);
-
-            esp_http_client_config_t config = {
-                .url = url,
-                .cert_pem = (char *)howsmyssl_com_root_cert_pem_start,
-                .event_handler = _http_event_handler,
-                .keep_alive_enable = true,
-            };
-
-            esp_err_t ret = esp_https_ota(&config, local_response_buffer);
-            if (ret == ESP_OK)
-            {
-                esp_restart();
-            }
-            else
-            {
-                ESP_LOGE(TAG, "Firmware upgrade failed");
-            }
-        }
-    }
-    else
-    {
-        ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
-
-        // TODO : handle E (22079) HTTP_CLIENT: HTTP GET request failed: ESP_ERR_HTTP_CONNECT
-        // failed due to timeout
-
-        http_status == HttpStatus_Forbidden ? http_status = HttpStatus_Forbidden : http_status == 600;
-    }
-
-    printf("GET local_response_buffer:\n");
-    for (int i = 0; i <= strlen(local_response_buffer); i++)
-    {
-        printf("%c", local_response_buffer[i]);
-    }
-    printf("\n");
-
-    free(local_response_buffer);
-    local_response_buffer = NULL;
-
-    esp_http_client_cleanup(client);
-
-    return http_status;
-}
-
 size_t http_get_request(char *hostname, char *path, char *query, char *session_cookie)
 {
     //char local_response_buffer[MAX_HTTP_OUTPUT_BUFFER] = {0};
@@ -320,64 +235,6 @@ size_t http_post_request(char *hostname, char *path, char *post_data, char *sess
     {
         size_t length = esp_http_client_get_content_length(client);
         ESP_LOGI(TAG, "HTTP POST Status = %d, content_length = %d", http_status, length);
-
-        /*
-        // handle /signup POST data
-        if (http_status == HttpStatus_Ok && strcmp(path, "/signup") == 0)
-        {
-            //size_t length = esp_http_client_get_content_length(client);
-
-            nvs_handle_t nvs_handle;
-
-            err = nvs_open("nvs", NVS_READWRITE, &nvs_handle);
-            if (err != ESP_OK)
-            {
-                ESP_LOGE(TAG, "nvs_open err: %s", esp_err_to_name(err));
-            }
-
-            // nvs read id_token
-            err = nvs_set_blob(nvs_handle, "session_cookie", local_response_buffer, length);
-            if (err != ESP_OK)
-            {
-                ESP_LOGE(TAG, "add_blob_to_nvs() nvs_set_blob() err: %s", esp_err_to_name(err));
-            }
-
-            nvs_commit(nvs_handle);
-            if (err != ESP_OK)
-            {
-                ESP_LOGE(TAG, "add_blob_to_nvs() nvs_commit() err: %s", esp_err_to_name(err));
-            }
-
-            nvs_close(nvs_handle);
-
-            // if the nvs write succeeded, add data to nvs_data struct
-            if (err == ESP_OK)
-            {
-                // during session cookie refresh, check the data of the nvs_data.session_cookie struct
-                if (nvs_data.session_cookie == NULL)
-                {
-                    nvs_data.session_cookie = malloc(length);
-                }
-                else
-                {
-                    free(nvs_data.session_cookie);
-                    nvs_data.session_cookie = NULL;
-                    nvs_data.session_cookie = malloc(length);
-                }
-
-                nvs_data.session_cookie_len = length;
-                strncpy(nvs_data.session_cookie, local_response_buffer, length);
-
-                printf("/signup POST 200 nvs_data.session_cookie:\n");
-                for (int i = 0; i < nvs_data.session_cookie_len; i++)
-                {
-                    printf("%c", nvs_data.session_cookie[i]);
-                }
-                printf("\n");
-            }
-        }
-
-        */
 
         // handle POST /signup/signout_glasses data
         if (http_status == HttpStatus_Ok && strcmp(path, "/signup/signout_glasses") == 0)
@@ -573,6 +430,7 @@ void https_send_file(uint8_t *buf, size_t buf_len)
     esp_http_client_config_t config = {
         .url = url,
         .event_handler = _http_event_handler,
+        .user_agent = "SmartGlassesOS/1.0.0",
         .cert_pem = howsmyssl_com_root_cert_pem_start,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);

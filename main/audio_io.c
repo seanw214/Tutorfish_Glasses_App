@@ -15,7 +15,6 @@
 
 #include "p_00.h" //for test, remove later
 
-
 static const char *TAG = "audio_io.c";
 
 #define I2S_BCK_IO (2)
@@ -127,7 +126,13 @@ esp_err_t malloc_attempt_wifi_conn_00_wav(void)
     return ESP_OK;
 }
 
-esp_err_t malloc_returning_home_wav_sfx(void)
+void free_attempt_wifi_conn_00(void)
+{
+    free(audio_buf.attempt_wifi_conn_00_wav_audio_buf);
+    audio_buf.attempt_wifi_conn_00_wav_audio_buf = NULL;
+}
+
+esp_err_t malloc_returning_home_wav(void)
 {
     const char *audio_file_path = "/audio/returning_home.wav";
 
@@ -173,6 +178,12 @@ esp_err_t malloc_returning_home_wav_sfx(void)
     }
 
     return ESP_OK;
+}
+
+void free_returning_home_wav(void)
+{
+    free(audio_buf.returning_home_wav_audio_buf);
+    audio_buf.returning_home_wav_audio_buf = NULL;
 }
 
 esp_err_t malloc_home_instructions_00_wav(void)
@@ -223,6 +234,12 @@ esp_err_t malloc_home_instructions_00_wav(void)
     return ESP_OK;
 }
 
+void free_home_instructions_00(void)
+{
+    free(audio_buf.home_instructions_00_wav_audio_buf);
+    audio_buf.home_instructions_00_wav_audio_buf = NULL;
+}
+
 esp_err_t malloc_exit_this_app_00_wav(void)
 {
     const char *audio_file_path = "/audio/exit_this_app_00.wav";
@@ -271,7 +288,13 @@ esp_err_t malloc_exit_this_app_00_wav(void)
     return ESP_OK;
 }
 
-void malloc_tutorfish_home(void)
+void free_exit_this_app_00(void)
+{
+    free(audio_buf.exit_this_app_00_wav_audio_buf);
+    audio_buf.exit_this_app_00_wav_audio_buf = NULL;
+}
+
+esp_err_t malloc_welcome_to_tutor_fish_01(void)
 {
     audio_buf.welcome_01_audio_len = welcome_to_tutor_fish_01_wav_len;
 
@@ -281,9 +304,17 @@ void malloc_tutorfish_home(void)
     {
         audio_buf.welcome_01_wav_audio_buf[i] = welcome_to_tutor_fish_01_wav[i];
     }
+
+    return ESP_OK;
 }
 
-void malloc_submit_a_question_00_wav(void)
+void free_welcome_to_tutor_fish_01(void)
+{
+    free(audio_buf.welcome_01_wav_audio_buf);
+    audio_buf.welcome_01_wav_audio_buf = NULL;
+}
+
+esp_err_t malloc_submit_a_question_00_wav(void)
 {
     audio_buf.submit_a_question_00_wav_len = submit_a_question_00_wav_len;
 
@@ -293,9 +324,17 @@ void malloc_submit_a_question_00_wav(void)
     {
         audio_buf.submit_a_question_00_wav_audio_buf[i] = submit_a_question_00_wav[i];
     }
+
+    return ESP_OK;
 }
 
-void malloc_tutor_fish_settings_00_wav(void)
+void free_submit_a_question_00(void)
+{
+    free(audio_buf.submit_a_question_00_wav_audio_buf);
+    audio_buf.submit_a_question_00_wav_audio_buf = NULL;
+}
+
+esp_err_t malloc_tutor_fish_settings_00_wav(void)
 {
     audio_buf.tutor_fish_settings_00_wav_len = tutor_fish_settings_00_wav_len;
 
@@ -305,9 +344,17 @@ void malloc_tutor_fish_settings_00_wav(void)
     {
         audio_buf.tutor_fish_settings_00_wav_audio_buf[i] = tutor_fish_settings_00_wav[i];
     }
+
+    return ESP_OK;
 }
 
-void malloc_look_at_your_question_01_wav(void)
+void free_tutor_fish_settings_00(void)
+{
+    free(audio_buf.tutor_fish_settings_00_wav_audio_buf);
+    audio_buf.tutor_fish_settings_00_wav_audio_buf = NULL;
+}
+
+esp_err_t malloc_look_at_your_question_01_wav(void)
 {
     audio_buf.look_at_your_question_01_wav_len = look_at_your_question_01_wav_len;
 
@@ -317,9 +364,17 @@ void malloc_look_at_your_question_01_wav(void)
     {
         audio_buf.look_at_your_question_01_wav_audio_buf[i] = look_at_your_question_01_wav[i];
     }
+
+    return ESP_OK;
 }
 
-void malloc_the_camera_take_a_pic_01_wav(void)
+void free_look_at_your_question_01(void)
+{
+    free(audio_buf.look_at_your_question_01_wav_audio_buf);
+    audio_buf.look_at_your_question_01_wav_audio_buf = NULL;
+}
+
+esp_err_t malloc_the_camera_take_a_pic_01_wav(void)
 {
     audio_buf.the_camera_take_a_pic_01_wav_len = the_camera_take_a_pic_01_wav_len;
 
@@ -329,9 +384,17 @@ void malloc_the_camera_take_a_pic_01_wav(void)
     {
         audio_buf.the_camera_take_a_pic_01_wav_audio_buf[i] = the_camera_take_a_pic_01_wav[i];
     }
+
+    return ESP_OK;
 }
 
-void malloc_to_conserve_battery_01_wav(void)
+void free_the_camera_take_a_pic_01(void)
+{
+    free(audio_buf.the_camera_take_a_pic_01_wav_audio_buf);
+    audio_buf.the_camera_take_a_pic_01_wav_audio_buf = NULL;
+}
+
+esp_err_t malloc_to_conserve_battery_01_wav(void)
 {
     audio_buf.to_conserve_battery_01_wav_len = to_conserve_battery_01_wav_len;
 
@@ -341,6 +404,14 @@ void malloc_to_conserve_battery_01_wav(void)
     {
         audio_buf.to_conserve_battery_01_wav_audio_buf[i] = to_conserve_battery_01_wav[i];
     }
+
+    return ESP_OK;
+}
+
+void free_to_conserve_battery_01(void)
+{
+    free(audio_buf.to_conserve_battery_01_wav_audio_buf);
+    audio_buf.to_conserve_battery_01_wav_audio_buf = NULL;
 }
 
 void malloc_p_wav(void)
@@ -357,25 +428,69 @@ void malloc_p_wav(void)
 
 esp_err_t play_submit_question_instructions(void)
 {
-    esp_err_t err = playback_audio_file(audio_buf.the_camera_take_a_pic_01_wav_audio_buf, audio_buf.the_camera_take_a_pic_01_wav_len, 0.15f, true);
-    if (err != ESP_OK)
+    esp_err_t err;
+
+    if (audio_buf.the_camera_take_a_pic_01_wav_audio_buf == NULL)
     {
-        ESP_LOGE(TAG, "playback_audio_file(audio_buf.the_camera_take_a_pic_01_wav_audio_buf) err: %s", esp_err_to_name(err));
+        err = malloc_the_camera_take_a_pic_01_wav();
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "malloc_the_camera_take_a_pic_01_wav() err: %s", esp_err_to_name(err));
+        }
+
+        if (err == ESP_OK)
+        {
+            playback_audio_file(audio_buf.the_camera_take_a_pic_01_wav_audio_buf, audio_buf.the_camera_take_a_pic_01_wav_len, 0.2f, true);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "playback_audio_file(the_camera_take_a_pic_01_wav_audio_buf) err: %s", esp_err_to_name(err));
+            }
+
+            free_the_camera_take_a_pic_01();
+        }
     }
 
-    err = playback_audio_file(audio_buf.look_at_your_question_01_wav_audio_buf, audio_buf.look_at_your_question_01_wav_len, 0.15f, true);
-    if (err != ESP_OK)
+    if (audio_buf.look_at_your_question_01_wav_audio_buf == NULL)
     {
-        ESP_LOGE(TAG, "playback_audio_file(audio_buf.look_at_your_question_01_wav_audio_buf) err: %s", esp_err_to_name(err));
+        err = malloc_look_at_your_question_01_wav();
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "malloc_look_at_your_question_01_wav() err: %s", esp_err_to_name(err));
+        }
+
+        if (err == ESP_OK)
+        {
+            playback_audio_file(audio_buf.look_at_your_question_01_wav_audio_buf, audio_buf.look_at_your_question_01_wav_len, 0.2f, true);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "playback_audio_file(look_at_your_question_01_wav_audio_buf) err: %s", esp_err_to_name(err));
+            }
+
+            free_look_at_your_question_01();
+        }
     }
 
-    err = playback_audio_file(audio_buf.to_conserve_battery_01_wav_audio_buf, audio_buf.to_conserve_battery_01_wav_len, 0.15f, true);
-    if (err != ESP_OK)
+    if (audio_buf.to_conserve_battery_01_wav_audio_buf == NULL)
     {
-        ESP_LOGE(TAG, "playback_audio_file(audio_buf.to_conserve_battery_01_wav_audio_buf) err: %s", esp_err_to_name(err));
+        err = malloc_to_conserve_battery_01_wav();
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "malloc_to_conserve_battery_01_wav() err: %s", esp_err_to_name(err));
+        }
+
+        if (err == ESP_OK)
+        {
+            playback_audio_file(audio_buf.to_conserve_battery_01_wav_audio_buf, audio_buf.to_conserve_battery_01_wav_len, 0.2f, true);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "playback_audio_file(look_at_your_question_01_wav_audio_buf) err: %s", esp_err_to_name(err));
+            }
+
+            free_to_conserve_battery_01();
+        }
     }
 
-    return err;
+    return ESP_OK;
 }
 
 esp_err_t playback_audio_file(int16_t *audio_file_buf, int audio_file_len, float audio_volume, bool audio_playback_stoppable)

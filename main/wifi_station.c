@@ -53,10 +53,24 @@ static void event_handler(void *arg, esp_event_base_t event_base,
     {
         esp_wifi_connect();
 
-        esp_err_t err = playback_audio_file(audio_buf.attempt_wifi_conn_00_wav_audio_buf, audio_buf.attempt_wifi_conn_00_wav_audio_len, 0.15f, false);
-        if (err != ESP_OK)
+        if (audio_buf.attempt_wifi_conn_00_wav_audio_buf == NULL)
         {
-            ESP_LOGE(TAG, "playback_audio_file() err: %s", esp_err_to_name(err));
+            esp_err_t err = malloc_attempt_wifi_conn_00_wav();
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "malloc_attempt_wifi_conn_00_wav() err: %s", esp_err_to_name(err));
+            }
+
+            if (err == ESP_OK)
+            {
+                playback_audio_file(audio_buf.attempt_wifi_conn_00_wav_audio_buf, audio_buf.attempt_wifi_conn_00_wav_audio_len, 0.2f, false);
+                if (err != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "playback_audio_file(submit_a_question_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                }
+
+                free_attempt_wifi_conn_00();
+            }
         }
     }
     else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
@@ -102,12 +116,12 @@ esp_err_t stop_wifi(void)
 
 esp_err_t start_wifi(void)
 {
-    //disable_home_button_isr(); // BUG FIX : gpio36 trigger after WiFi start. https://www.esp32.com/viewtopic.php?t=5161
+    // disable_home_button_isr(); // BUG FIX : gpio36 trigger after WiFi start. https://www.esp32.com/viewtopic.php?t=5161
 
     // NOTE : if brownout disabled, comment out attempt_wifi_conn audio playback inside main.c
-    //WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
+    // WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
     ESP_ERROR_CHECK(esp_wifi_start());
-    //WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 1); //enable brownout detector
+    // WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 1); //enable brownout detector
 
     ESP_LOGI(TAG, "wifi_init_sta finished.");
 
@@ -131,7 +145,7 @@ esp_err_t start_wifi(void)
     }
     else if (bits & WIFI_FAIL_BIT)
     {
-        //home_init = false;
+        // home_init = false;
         wifi_bt_status.wifi_conn = false;
         ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s", ssid, pass);
     }
@@ -141,8 +155,8 @@ esp_err_t start_wifi(void)
     }
 
     /* The event will not be processed after unregister */
-    //ESP_ERROR_CHECK(esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip));
-    //ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
+    // ESP_ERROR_CHECK(esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip));
+    // ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
     vEventGroupDelete(s_wifi_event_group);
 
     return ESP_FAIL;
@@ -163,7 +177,7 @@ void wifi_init_sta(void)
 {
     esp_err_t err;
 
-    //s_wifi_event_group = xEventGroupCreate();
+    // s_wifi_event_group = xEventGroupCreate();
 
     ESP_ERROR_CHECK(esp_netif_init());
 

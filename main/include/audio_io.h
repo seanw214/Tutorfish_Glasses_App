@@ -7,18 +7,37 @@ esp_err_t playback_audio_file(int16_t *audio_file_buf, int audio_file_len, float
 esp_err_t playback_audio_file_2(int16_t *audio_file_buf, int audio_file_len, float audio_volume, bool audio_playback_stoppable);
 esp_err_t play_submit_question_instructions(void);
 
-esp_err_t malloc_returning_home_wav_sfx(void);
-esp_err_t malloc_attempt_wifi_conn_00_wav(void);
-esp_err_t malloc_wifi_disconn_00_wav(void);
-esp_err_t malloc_home_instructions_00_wav(void);
-esp_err_t malloc_exit_this_app_00_wav(void);
+esp_err_t malloc_returning_home_wav(void);
+void free_returning_home_wav(void);
 
-void malloc_tutorfish_home(void);
-void malloc_submit_a_question_00_wav(void);
-void malloc_tutor_fish_settings_00_wav(void);
-void malloc_look_at_your_question_01_wav(void);
-void malloc_the_camera_take_a_pic_01_wav(void);
-void malloc_to_conserve_battery_01_wav(void);
+esp_err_t malloc_attempt_wifi_conn_00_wav(void);
+void free_attempt_wifi_conn_00(void);
+
+esp_err_t malloc_wifi_disconn_00_wav(void);
+
+esp_err_t malloc_home_instructions_00_wav(void);
+void free_home_instructions_00(void);
+
+esp_err_t malloc_exit_this_app_00_wav(void);
+void free_exit_this_app_00(void);
+
+esp_err_t malloc_welcome_to_tutor_fish_01(void);
+void free_welcome_to_tutor_fish_01(void);
+
+esp_err_t malloc_submit_a_question_00_wav(void);
+void free_submit_a_question_00(void);
+
+esp_err_t malloc_tutor_fish_settings_00_wav(void);
+void free_tutor_fish_settings_00(void);
+
+esp_err_t malloc_look_at_your_question_01_wav(void);
+void free_look_at_your_question_01(void);
+
+esp_err_t malloc_the_camera_take_a_pic_01_wav(void);
+void free_the_camera_take_a_pic_01(void);
+
+esp_err_t malloc_to_conserve_battery_01_wav(void);
+void free_to_conserve_battery_01(void);
 
 void malloc_p_wav(void);
 

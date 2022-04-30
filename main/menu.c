@@ -19,22 +19,48 @@ esp_err_t browse_menu(void)
         {
         case 0:
 
-            err = playback_audio_file(audio_buf.tutor_fish_settings_00_wav_audio_buf, audio_buf.tutor_fish_settings_00_wav_len, 0.2f, true);
-            if (err != ESP_OK)
+            if (audio_buf.tutor_fish_settings_00_wav_audio_buf == NULL)
             {
-                ESP_LOGE(TAG, "playback_audio_file() err: %s", esp_err_to_name(err));
-                return err;
+                err = malloc_tutor_fish_settings_00_wav();
+                if (err != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "malloc_tutor_fish_settings_00_wav() err: %s", esp_err_to_name(err));
+                }
+
+                if (err == ESP_OK)
+                {
+                    playback_audio_file(audio_buf.tutor_fish_settings_00_wav_audio_buf, audio_buf.tutor_fish_settings_00_wav_len, 0.2f, false);
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "playback_audio_file(tutor_fish_settings_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                    }
+
+                    free_tutor_fish_settings_00();
+                }
             }
 
             ESP_LOGI(TAG, "browse_menu(): Tutorfish Settings");
             break;
         case 1:
 
-            err = playback_audio_file(audio_buf.submit_a_question_00_wav_audio_buf, audio_buf.submit_a_question_00_wav_len, 0.2f, true);
-            if (err != ESP_OK)
+            if (audio_buf.submit_a_question_00_wav_audio_buf == NULL)
             {
-                ESP_LOGE(TAG, "playback_audio_file() err: %s", esp_err_to_name(err));
-                return err;
+                err = malloc_submit_a_question_00_wav();
+                if (err != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "malloc_tutor_fish_settings_00_wav() err: %s", esp_err_to_name(err));
+                }
+
+                if (err == ESP_OK)
+                {
+                    playback_audio_file(audio_buf.submit_a_question_00_wav_audio_buf, audio_buf.submit_a_question_00_wav_len, 0.2f, false);
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "playback_audio_file(submit_a_question_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                    }
+
+                    free_submit_a_question_00();
+                }
             }
 
             ESP_LOGI(TAG, "browse_menu(): Submit Question");

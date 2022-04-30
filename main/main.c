@@ -27,7 +27,7 @@ state_machine_t state_machine;
 
 #include "init_variables.h"
 bool tutorfish_home_init = false;
-bool tutorfish_submit_question_init = false;
+bool tutorfish_submit_question_init;
 bool tutorfish_settings_init = false;
 
 #include "audio_io.h"
@@ -41,7 +41,7 @@ esp_err_t setup_sleep(void)
     {
         delete_blue_led_task();
         blue_led_task_init = false;
-        
+
         set_blue_led(0);
     }
 
@@ -57,44 +57,6 @@ esp_err_t setup_sleep(void)
     ESP_LOGI(TAG, "Going to light sleep...");
 
     return esp_light_sleep_start();
-}
-
-esp_err_t audio_malloc(void)
-{
-    esp_err_t err = malloc_attempt_wifi_conn_00_wav();
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "malloc_attempt_wifi_conn_00_wav() err: %s", esp_err_to_name(err));
-    }
-
-    err = malloc_returning_home_wav_sfx();
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "malloc_returning_home_wav_sfx() err: %s", esp_err_to_name(err));
-    }
-
-    err = malloc_home_instructions_00_wav();
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "malloc_home_instructions_00_wav() err: %s", esp_err_to_name(err));
-    }
-
-    err = malloc_exit_this_app_00_wav();
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "malloc_home_instructions_00_wav() err: %s", esp_err_to_name(err));
-    }
-
-    malloc_tutorfish_home();
-    malloc_submit_a_question_00_wav();
-    malloc_tutor_fish_settings_00_wav();
-    malloc_look_at_your_question_01_wav();
-    malloc_the_camera_take_a_pic_01_wav();
-    malloc_to_conserve_battery_01_wav();
-
-    malloc_p_wav();
-
-    return err;
 }
 
 void app_main(void)
@@ -126,12 +88,6 @@ void app_main(void)
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "init_i2s() err: %s", esp_err_to_name(err));
-    }
-
-    err = audio_malloc();
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "audio_malloc() err: %s", esp_err_to_name(err));
     }
 
     /*
@@ -178,22 +134,66 @@ void app_main(void)
         ESP_LOGE(TAG, "init_blue_led() err: %s", esp_err_to_name(err));
     }
 
-    err = playback_audio_file(audio_buf.welcome_01_wav_audio_buf, audio_buf.welcome_01_audio_len, 0.15f, false);
-    if (err != ESP_OK)
+    tutorfish_submit_question_init = false;
+
+    if (audio_buf.welcome_01_wav_audio_buf == NULL)
     {
-        ESP_LOGE(TAG, "playback_audio_file(audio_buf.home_sfx_audio_buf) err: %s", esp_err_to_name(err));
+        err = malloc_welcome_to_tutor_fish_01();
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "malloc_welcome_to_tutor_fish_01() err: %s", esp_err_to_name(err));
+        }
+
+        if (err == ESP_OK)
+        {
+            playback_audio_file(audio_buf.welcome_01_wav_audio_buf, audio_buf.welcome_01_audio_len, 0.2f, false);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "playback_audio_file(welcome_01_wav_audio_buf) err: %s", esp_err_to_name(err));
+            }
+
+            free_welcome_to_tutor_fish_01();
+        }
     }
 
-    err = playback_audio_file(audio_buf.home_instructions_00_wav_audio_buf, audio_buf.home_instructions_00_wav_audio_len, 0.15f, true);
-    if (err != ESP_OK)
+    if (audio_buf.home_instructions_00_wav_audio_buf == NULL)
     {
-        ESP_LOGE(TAG, "playback_audio_file(audio_buf.home_sfx_audio_buf) err: %s", esp_err_to_name(err));
+        err = malloc_home_instructions_00_wav();
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "malloc_home_instructions_00_wav() err: %s", esp_err_to_name(err));
+        }
+
+        if (err == ESP_OK)
+        {
+            playback_audio_file(audio_buf.home_instructions_00_wav_audio_buf, audio_buf.home_instructions_00_wav_audio_len, 0.2f, false);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "playback_audio_file(home_instructions_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+            }
+
+            free_home_instructions_00();
+        }
     }
 
-    err = playback_audio_file(audio_buf.exit_this_app_00_wav_audio_buf, audio_buf.exit_this_app_00_wav_audio_len, 0.15f, true);
-    if (err != ESP_OK)
+    if (audio_buf.exit_this_app_00_wav_audio_buf == NULL)
     {
-        ESP_LOGE(TAG, "playback_audio_file(audio_buf.home_sfx_audio_buf) err: %s", esp_err_to_name(err));
+        err = malloc_exit_this_app_00_wav();
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "malloc_home_instructions_00_wav() err: %s", esp_err_to_name(err));
+        }
+
+        if (err == ESP_OK)
+        {
+            playback_audio_file(audio_buf.exit_this_app_00_wav_audio_buf, audio_buf.exit_this_app_00_wav_audio_len, 0.2f, false);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "playback_audio_file(exit_this_app_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+            }
+
+            free_exit_this_app_00();
+        }
     }
 
     state_machine = TUTORFISH_HOME;
@@ -237,6 +237,30 @@ void app_main(void)
             }
 
             wifi_bt_status.user_end_wifi_conn = false;
+
+            // playback submit a question before connecting to wifi
+            if (tutorfish_settings_init)
+            {
+                if (audio_buf.submit_a_question_00_wav_audio_buf == NULL)
+                {
+                    err = malloc_submit_a_question_00_wav();
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "malloc_tutor_fish_settings_00_wav() err: %s", esp_err_to_name(err));
+                    }
+
+                    if (err == ESP_OK)
+                    {
+                        playback_audio_file(audio_buf.submit_a_question_00_wav_audio_buf, audio_buf.submit_a_question_00_wav_len, 0.2f, false);
+                        if (err != ESP_OK)
+                        {
+                            ESP_LOGE(TAG, "playback_audio_file(submit_a_question_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                        }
+
+                        free_submit_a_question_00();
+                    }
+                }
+            }
 
             err = start_wifi();
             if (err == ESP_OK)
@@ -282,10 +306,35 @@ void app_main(void)
                     ESP_LOGW(TAG, "err: %s, Wifi connection unsuccessful. Make sure that your wifi is turned on and try again.", esp_err_to_name(err));
                 }
 
-                err = playback_audio_file(audio_buf.returning_home_wav_audio_buf, audio_buf.returning_home_wav_audio_len, 0.2f, false);
-                if (err != ESP_OK)
+                // if the wifi times out before connection while the user is submitting a question
+                if (tutorfish_submit_question_init)
                 {
-                    ESP_LOGE(TAG, "playback_audio_file() err: %s", esp_err_to_name(err));
+                    if (setup_sleep() != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "CONNECT_TO_WIFI setup_sleep() err: %s", esp_err_to_name(err));
+                    }
+
+                    break;
+                }
+
+                if (audio_buf.returning_home_wav_audio_buf == NULL)
+                {
+                    err = malloc_returning_home_wav();
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "malloc_returning_home_wav() err: %s", esp_err_to_name(err));
+                    }
+
+                    if (err == ESP_OK)
+                    {
+                        playback_audio_file(audio_buf.returning_home_wav_audio_buf, audio_buf.returning_home_wav_audio_len, 0.2f, false);
+                        if (err != ESP_OK)
+                        {
+                            ESP_LOGE(TAG, "playback_audio_file(returning_home_wav_audio_buf) err: %s", esp_err_to_name(err));
+                        }
+
+                        free_returning_home_wav();
+                    }
                 }
 
                 state_machine = TUTORFISH_HOME;
@@ -378,18 +427,11 @@ void app_main(void)
             }
 
             break;
-        case TUTORFISH_CHECK_ACCOUNT:
-
-            // TODO : check user account for credits
-
-            // ESP_LOGI(TAG, "cheking user account for question credits..");
-            // vTaskDelay(2000 / portTICK_PERIOD_MS);
-
-            state_machine = TUTORFISH_CAPTURE_PIC;
-            break;
         case TUTORFISH_CAPTURE_PIC:
             ESP_LOGI(TAG, "capturing picture..");
             vTaskDelay(2000 / portTICK_PERIOD_MS);
+
+
 
             state_machine = TUTORFISH_POLL_DB;
             break;
@@ -431,6 +473,14 @@ void app_main(void)
             vTaskDelay(1000 / portTICK_PERIOD_MS);
 
             state_machine = TUTORFISH_SUBMIT_QUESTION;
+
+            if (blue_led_task_init)
+            {
+                delete_blue_led_task();
+                blue_led_task_init = false;
+            }
+
+            set_blue_led(0);
 
             if (setup_sleep() != ESP_OK)
             {

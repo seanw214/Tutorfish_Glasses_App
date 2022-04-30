@@ -46,10 +46,24 @@ static void handle_double_press(void)
 
     if (state_machine == TUTORFISH_HOME)
     {
-        err = playback_audio_file(audio_buf.returning_home_wav_audio_buf, audio_buf.returning_home_wav_audio_len, 0.05f, false);
-        if (err != ESP_OK)
+        if (audio_buf.returning_home_wav_audio_buf == NULL)
         {
-            ESP_LOGE(TAG, "playback_audio_file() err: %s", esp_err_to_name(err));
+            err = malloc_returning_home_wav();
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "malloc_returning_home_wav() err: %s", esp_err_to_name(err));
+            }
+
+            if (err == ESP_OK)
+            {
+                playback_audio_file(audio_buf.returning_home_wav_audio_buf, audio_buf.returning_home_wav_audio_len, 0.2f, false);
+                if (err != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "playback_audio_file(returning_home_wav_audio_buf) err: %s", esp_err_to_name(err));
+                }
+
+                free_returning_home_wav();
+            }
         }
 
         err = get_current_running_app();
@@ -87,10 +101,24 @@ static void handle_double_press(void)
 
     else if (state_machine == TUTORFISH_SETTINGS)
     {
-        err = playback_audio_file(audio_buf.returning_home_wav_audio_buf, audio_buf.returning_home_wav_audio_len, 0.2f, false);
-        if (err != ESP_OK)
+        if (audio_buf.returning_home_wav_audio_buf == NULL)
         {
-            ESP_LOGE(TAG, "playback_audio_file() err: %s", esp_err_to_name(err));
+            err = malloc_returning_home_wav();
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "malloc_returning_home_wav() err: %s", esp_err_to_name(err));
+            }
+
+            if (err == ESP_OK)
+            {
+                playback_audio_file(audio_buf.returning_home_wav_audio_buf, audio_buf.returning_home_wav_audio_len, 0.2f, false);
+                if (err != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "playback_audio_file(returning_home_wav_audio_buf) err: %s", esp_err_to_name(err));
+                }
+
+                free_returning_home_wav();
+            }
         }
 
         tutorfish_settings_init = false;
