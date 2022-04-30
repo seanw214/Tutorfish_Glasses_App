@@ -4,6 +4,8 @@
 #include "esp_log.h"
 #include "nvs_flash.h"
 
+#include "nvs_data_struct.h"
+
 static const char *TAG = "nvs";
 
 esp_err_t read_nvs_email_pass(void)

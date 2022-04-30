@@ -8,7 +8,9 @@
 #include "nvs_flash.h"
 #include "driver/gpio.h"
 #include "esp_sleep.h"
+#include "http_request.h"
 
+#include "nvs.h"
 #include "littlefs_helper.h"
 #include "camera.h"
 #include "home_button.h"
@@ -33,7 +35,38 @@ bool tutorfish_settings_init = false;
 #include "audio_io.h"
 bool repeat_tts_playback = false;
 
+#include "nvs_data_struct.h"
+nvs_data_t nvs_data;
+
 static const char *TAG = "main.c";
+
+esp_err_t get_new_session_cookie(void)
+{
+    const char *json_obj_beginning = "{\"userEmail\":\"";
+    const char *json_obj_mid = "\",\"userPassword\":\"";
+    const char *json_obj_ending = "\"}";
+    char *post_data = malloc(strlen(json_obj_beginning) + strlen(nvs_data.user_email) + strlen(json_obj_mid) + strlen(nvs_data.user_pass) + strlen(json_obj_ending));
+
+    strcpy(post_data, json_obj_beginning);
+    strncat(post_data, nvs_data.user_email, nvs_data.user_email_len);
+    strcat(post_data, json_obj_mid);
+    strncat(post_data, nvs_data.user_pass, nvs_data.user_pass_len);
+    strcat(post_data, json_obj_ending);
+
+    // retreive session cookie for account access
+    size_t http_status = http_post_request("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/session-smartglasses-login", post_data, NULL);
+    if (http_status == 600)
+    {
+        // TODO : handle esp error
+        ESP_LOGE(TAG, "http_post_request() ESP error");
+        return ESP_FAIL;
+    }
+
+    free(post_data);
+    post_data = NULL;
+
+    return ESP_OK;
+}
 
 esp_err_t setup_sleep(void)
 {
@@ -72,6 +105,20 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(err);
 
+    err = read_nvs_email_pass();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "read_nvs_email_pass() err: %s", esp_err_to_name(err));
+    }
+
+    err = read_nvs_session_cookie();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "read_nvs_session_cookie() err: %s", esp_err_to_name(err));
+    }
+
+    print_nvs_credentials();
+
     // LittleFs configuration struct
     esp_vfs_littlefs_conf_t conf = {
         .base_path = "/audio",
@@ -89,14 +136,6 @@ void app_main(void)
     {
         ESP_LOGE(TAG, "init_i2s() err: %s", esp_err_to_name(err));
     }
-
-    /*
-    err = littlefs_partition_info(conf);
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "littlefs_partition_info() err: %s", esp_err_to_name(err));
-    }
-    */
 
     err = init_camera_pwdn(CAMERA_ON);
     if (err != ESP_OK)
@@ -166,7 +205,7 @@ void app_main(void)
 
         if (err == ESP_OK)
         {
-            playback_audio_file(audio_buf.home_instructions_00_wav_audio_buf, audio_buf.home_instructions_00_wav_audio_len, 0.2f, false);
+            playback_audio_file(audio_buf.home_instructions_00_wav_audio_buf, audio_buf.home_instructions_00_wav_audio_len, 0.2f, true);
             if (err != ESP_OK)
             {
                 ESP_LOGE(TAG, "playback_audio_file(home_instructions_00_wav_audio_buf) err: %s", esp_err_to_name(err));
@@ -186,7 +225,7 @@ void app_main(void)
 
         if (err == ESP_OK)
         {
-            playback_audio_file(audio_buf.exit_this_app_00_wav_audio_buf, audio_buf.exit_this_app_00_wav_audio_len, 0.2f, false);
+            playback_audio_file(audio_buf.exit_this_app_00_wav_audio_buf, audio_buf.exit_this_app_00_wav_audio_len, 0.2f, true);
             if (err != ESP_OK)
             {
                 ESP_LOGE(TAG, "playback_audio_file(exit_this_app_00_wav_audio_buf) err: %s", esp_err_to_name(err));
@@ -276,7 +315,7 @@ void app_main(void)
                 wifi_bt_status.wifi_init = true;
                 wifi_bt_status.wifi_conn = true;
 
-                state_machine = TUTORFISH_CHECK_ACCOUNT;
+                state_machine = TUTORFISH_VALIDATE_SESSION;
                 break;
             }
             else
@@ -427,11 +466,49 @@ void app_main(void)
             }
 
             break;
+        case TUTORFISH_VALIDATE_SESSION:
+            // check if the session is valid
+            ESP_LOGI(TAG, "Checking session validity...");
+            size_t http_status = http_get_request("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/validate-session", "", nvs_data.session_cookie);
+            // Ok: session cookie valid
+            if (http_status == 200)
+            {
+                state_machine = TUTORFISH_CAPTURE_PIC;
+                break;
+            }
+            // Unauthorized/Bad Request: session cookie has expired/missing session_cookie "Cookie" header
+            else if (http_status == 401 || http_status == 400)
+            {
+                ESP_LOGW(TAG, "TUTORFISH_VALIDATE_SESSION http_get_request() http_status: %d", http_status);
+                ESP_LOGI(TAG, "Getting new session cookie...");
+
+                err = get_new_session_cookie();
+                if (err != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "TUTORFISH_VALIDATE_SESSION get_new_session_cookie() err: %s", esp_err_to_name(err));
+                    break;
+                }
+
+                break;
+            }
+            // Forbidden: useragent was not SmartGlassesOS
+            else if (http_status == 403)
+            {
+                // notify the user to return to Smart Glasses Home
+                ESP_LOGE(TAG, "TUTORFISH_VALIDATE_SESSION http_get_request() http_status: %d", http_status);
+                state_machine = TUTORFISH_HOME;
+                break;
+            }
+            else
+            {
+                ESP_LOGE(TAG, "TUTORFISH_VALIDATE_SESSION http_get_request() http_status: %d", http_status);
+                state_machine = TUTORFISH_HOME;
+                break;
+            }
+            break;
         case TUTORFISH_CAPTURE_PIC:
             ESP_LOGI(TAG, "capturing picture..");
             vTaskDelay(2000 / portTICK_PERIOD_MS);
-
-
 
             state_machine = TUTORFISH_POLL_DB;
             break;
@@ -444,7 +521,7 @@ void app_main(void)
             break;
         case TUTORFISH_DOWNLOAD_TTS:
             ESP_LOGI(TAG, "downloading the tts from the db link");
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            vTaskDelay(2000 / portTICK_PERIOD_MS);
 
             state_machine = TUTORFISH_PLAYBACK_ANSWER;
             break;
@@ -453,7 +530,7 @@ void app_main(void)
             repeat_tts_playback = false;
 
             ESP_LOGI(TAG, "playing the tts audio");
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            vTaskDelay(2000 / portTICK_PERIOD_MS);
 
             ESP_LOGI(TAG, "tap the right stem to repeat this answer, otherwise glasses will sleep");
             vTaskDelay(3000 / portTICK_PERIOD_MS);
