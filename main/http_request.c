@@ -14,7 +14,7 @@
 #include "nvs_flash.h"
 #include "esp_event.h"
 #include "esp_netif.h"
-#include "protocol_examples_common.h"
+//#include "protocol_examples_common.h"
 #include "esp_tls.h"
 #include "esp_crt_bundle.h"
 
@@ -53,8 +53,16 @@ extern const char postman_root_cert_pem_end[] asm("_binary_postman_root_cert_pem
 extern const uint8_t server_cert_pem_start[] asm("_binary_ca_cert_pem_start");
 
 static char *img_buf = NULL;
+static char *session_buf = NULL;
 
 char local_response_buffer[MAX_HTTP_OUTPUT_BUFFER] = {0};
+
+typedef enum
+{
+    SESSION
+} queries_t;
+
+queries_t queries;
 
 esp_err_t _http_event_handler(esp_http_client_event_t *evt)
 {
@@ -142,6 +150,9 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt)
 size_t http_get_request(char *hostname, char *path, char *query, char *session_cookie)
 {
 
+    // char *local_response_buffer = malloc(MAX_HTTP_OUTPUT_BUFFER);
+    // memset(local_response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER);
+
     esp_http_client_config_t config = {
         .host = hostname,
         .path = path,
@@ -155,7 +166,18 @@ size_t http_get_request(char *hostname, char *path, char *query, char *session_c
     // check if the GET request has a query
     if (query != NULL)
     {
-        config.query = query;
+        // TODO : actually implement the switch ENUM functionality
+        switch (queries)
+        {
+        case SESSION:
+            if (nvs_data.session_cookie != NULL)
+            {
+                config.query = nvs_data.session_cookie;
+            }
+            break;
+        default:
+            break;
+        }
     }
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
@@ -174,6 +196,8 @@ size_t http_get_request(char *hostname, char *path, char *query, char *session_c
         {
             ESP_LOGE(TAG, "http_get_request() esp_http_client_set_header(session_cookie) err_ : %s", esp_err_to_name(err_));
         }
+
+        vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 
     // GET
@@ -250,6 +274,40 @@ size_t http_post_request(char *hostname, char *path, char *post_data, char *sess
         // if the http request was successful, add new session cookie to nvs
         if (http_status == HttpStatus_Ok && strcmp(path, "/session-smartglasses-login") == 0)
         {
+            // BUG FIX: local_reponse_buffer retains previous request data
+            if (strstr(local_response_buffer, "Bad Request"))
+            {
+                const int bad_request_len = strlen("Bad Request");
+                int ii = 0;
+                session_buf = malloc(length);
+                memset(session_buf, 0, length);
+                for (int i = 0; i < length + bad_request_len; i++)
+                {
+                    if (i >= bad_request_len)
+                    {
+                        session_buf[ii++] = local_response_buffer[i];
+                    }
+                }
+            }
+            else if (strstr(local_response_buffer, "Unauthorized"))
+            {
+                const int unauthorized_len = strlen("Unauthorized");
+                int ii = 0;
+                session_buf = malloc(length);
+                memset(session_buf, 0, length);
+                for (int i = 0; i < length + unauthorized_len; i++)
+                {
+                    if (i >= unauthorized_len)
+                    {
+                        session_buf[ii++] = local_response_buffer[i];
+                    }
+                }
+            } else {
+                session_buf = malloc(length);
+                memset(session_buf, 0, length);
+                strcpy(session_buf, local_response_buffer);
+            }
+
             nvs_handle_t nvs_handle;
 
             err = nvs_open("nvs", NVS_READWRITE, &nvs_handle);
@@ -259,7 +317,7 @@ size_t http_post_request(char *hostname, char *path, char *post_data, char *sess
             }
 
             // nvs read id_token
-            err = nvs_set_blob(nvs_handle, "session_cookie", local_response_buffer, length);
+            err = nvs_set_blob(nvs_handle, "session_cookie", session_buf, length);
             if (err != ESP_OK)
             {
                 ESP_LOGE(TAG, "add_blob_to_nvs() nvs_set_blob() err: %s", esp_err_to_name(err));
@@ -289,7 +347,7 @@ size_t http_post_request(char *hostname, char *path, char *post_data, char *sess
                 }
 
                 nvs_data.session_cookie_len = length;
-                strncpy(nvs_data.session_cookie, local_response_buffer, length);
+                strncpy(nvs_data.session_cookie, session_buf, length);
 
                 // printf("/session-smartglasses-login POST 200 nvs_data.session_cookie:\n");
                 // for (int i = 0; i < nvs_data.session_cookie_len; i++)
@@ -298,6 +356,9 @@ size_t http_post_request(char *hostname, char *path, char *post_data, char *sess
                 // }
                 // printf("\n");
             }
+
+            free(session_buf);
+            session_buf = NULL;
         }
 
         // handle POST /signup/signout_glasses data
@@ -324,7 +385,7 @@ size_t http_post_request(char *hostname, char *path, char *post_data, char *sess
 
     // free(post_local_response_buffer);
     // post_local_response_buffer = NULL;
-    
+
     esp_http_client_cleanup(client);
 
     return http_status;

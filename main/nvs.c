@@ -87,7 +87,7 @@ esp_err_t read_nvs_session_cookie(void)
     err = nvs_get_blob(nvs_handle, "session_cookie", NULL, &length);
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "session_cookie nvs_get_str() err: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "session_cookie nvs_get_blob() err: %s", esp_err_to_name(err));
     }
     else
     {
@@ -121,10 +121,10 @@ esp_err_t write_nvs_session_cookie(char *session_cookie)
         return err;
     }
     
-    err = nvs_set_str(nvs_handle, "session_cookie", session_cookie);
+    err = nvs_set_blob(nvs_handle, "session_cookie", session_cookie, strlen(session_cookie));
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "write_nvs_session_cookie() nvs_set_str(session_cookie) err: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "write_nvs_session_cookie() nvs_set_blob(session_cookie) err: %s", esp_err_to_name(err));
     }
 
     nvs_commit(nvs_handle);

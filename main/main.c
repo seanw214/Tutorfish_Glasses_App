@@ -29,7 +29,7 @@ state_machine_t state_machine;
 
 #include "init_variables.h"
 bool tutorfish_home_init = false;
-bool tutorfish_submit_question_init;
+bool tutorfish_submit_question_init = false;
 bool tutorfish_settings_init = false;
 
 #include "audio_io.h"
@@ -179,8 +179,9 @@ void app_main(void)
         ESP_LOGE(TAG, "init_blue_led() err: %s", esp_err_to_name(err));
     }
 
-    tutorfish_submit_question_init = false;
+    
 
+    /*
     if (audio_buf.welcome_01_wav_audio_buf == NULL)
     {
         err = malloc_welcome_to_tutor_fish_01();
@@ -240,6 +241,7 @@ void app_main(void)
             free_exit_this_app_00();
         }
     }
+    */
 
     state_machine = TUTORFISH_HOME;
 
@@ -448,7 +450,7 @@ void app_main(void)
             {
                 ESP_LOGI(TAG, "TUTORFISH_SUBMIT_QUESTION");
 
-                play_submit_question_instructions();
+                //play_submit_question_instructions();
 
                 tutorfish_submit_question_init = true;
 
@@ -477,7 +479,8 @@ void app_main(void)
         case TUTORFISH_VALIDATE_SESSION:
             // check if the session is valid
             ESP_LOGI(TAG, "Checking session validity...");
-            size_t http_status = http_get_request("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/validate-session", "", nvs_data.session_cookie);
+            //size_t http_status = http_get_request("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/validate-session", "", nvs_data.session_cookie);
+            size_t http_status = http_get_request("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/validate-session", "session=", NULL);
             // Ok: session cookie valid
             if (http_status == 200)
             {
@@ -500,7 +503,7 @@ void app_main(void)
                 print_nvs_credentials();
 
                 // add timeout so that firebase can prepare
-                vTaskDelay(1000 / portTICK_PERIOD_MS);
+                vTaskDelay(3000 / portTICK_PERIOD_MS);
 
                 break;
             }
@@ -515,7 +518,8 @@ void app_main(void)
             else
             {
                 ESP_LOGE(TAG, "TUTORFISH_VALIDATE_SESSION http_get_request() http_status: %d", http_status);
-                state_machine = TUTORFISH_HOME;
+                // TODO : sometimes http_get_request returns with  ESP_ERR_HTTP_FETCH_HEADER -> E (26495) main.c: TUTORFISH_VALIDATE_SESSION http_get_request() http_status: -1
+                // try to validate again...
                 break;
             }
             break;
