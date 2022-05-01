@@ -84,7 +84,7 @@ esp_err_t read_nvs_session_cookie(void)
     }
 
     // malloc the users current session cookie
-    err = nvs_get_str(nvs_handle, "session_cookie", NULL, &length);
+    err = nvs_get_blob(nvs_handle, "session_cookie", NULL, &length);
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "session_cookie nvs_get_str() err: %s", esp_err_to_name(err));
@@ -93,7 +93,7 @@ esp_err_t read_nvs_session_cookie(void)
     {
         char *session_cookie = malloc(length);
 
-        err = nvs_get_str(nvs_handle, "session_cookie", session_cookie, &length);
+        err = nvs_get_blob(nvs_handle, "session_cookie", session_cookie, &length);
         if (err != ESP_OK)
         {
             ESP_LOGE(TAG, "session_cookie nvs_get_str err: %s", esp_err_to_name(err));
@@ -133,8 +133,37 @@ esp_err_t write_nvs_session_cookie(char *session_cookie)
         ESP_LOGE(TAG, "write_nvs_session_cookie() nvs_commit() err: %s", esp_err_to_name(err));
     }
 
-    return err;
+    nvs_close(nvs_handle);
 
+    return err;
+}
+
+esp_err_t erase_nvs_key(char *nvs_key)
+{
+    nvs_handle_t nvs_handle;
+
+    esp_err_t err = nvs_open("nvs", NVS_READWRITE, &nvs_handle);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "nvs_open err: %s", esp_err_to_name(err));
+        return err;
+    }
+    
+    err = nvs_erase_key(nvs_handle, "session_cookie");
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "write_nvs_session_cookie() nvs_set_str(session_cookie) err: %s", esp_err_to_name(err));
+    }
+
+    nvs_commit(nvs_handle);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "write_nvs_session_cookie() nvs_commit() err: %s", esp_err_to_name(err));
+    }
+
+    nvs_close(nvs_handle);
+
+    return err;
 }
 
 void print_nvs_credentials(void)

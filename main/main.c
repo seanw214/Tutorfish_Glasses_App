@@ -111,6 +111,12 @@ void app_main(void)
         ESP_LOGE(TAG, "read_nvs_email_pass() err: %s", esp_err_to_name(err));
     }
 
+    // err = erase_nvs_key("session_cookie");
+    // if (err != ESP_OK)
+    // {
+    //     ESP_LOGE(TAG, "erase_nvs_key() err: %s", esp_err_to_name(err));
+    // }
+
     err = read_nvs_session_cookie();
     if (err != ESP_OK)
     {
@@ -277,8 +283,10 @@ void app_main(void)
 
             wifi_bt_status.user_end_wifi_conn = false;
 
+            ESP_LOGI(TAG, "tutorfish_submit_question_init: %d", tutorfish_submit_question_init);
+
             // playback submit a question before connecting to wifi
-            if (tutorfish_settings_init)
+            if (tutorfish_submit_question_init)
             {
                 if (audio_buf.submit_a_question_00_wav_audio_buf == NULL)
                 {
@@ -489,6 +497,11 @@ void app_main(void)
                     break;
                 }
 
+                print_nvs_credentials();
+
+                // add timeout so that firebase can prepare
+                vTaskDelay(1000 / portTICK_PERIOD_MS);
+
                 break;
             }
             // Forbidden: useragent was not SmartGlassesOS
@@ -558,6 +571,18 @@ void app_main(void)
             }
 
             set_blue_led(0);
+
+            err = stop_wifi();
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "stop_wifi() error: %s", esp_err_to_name(err));
+            }
+            else
+            {
+                wifi_bt_status.wifi_conn = false;
+            }
+
+            vTaskDelay(100 / portTICK_PERIOD_MS);
 
             if (setup_sleep() != ESP_OK)
             {
