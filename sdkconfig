@@ -139,6 +139,14 @@ CONFIG_EXAMPLE_CONNECT_IPV6_PREF_LOCAL_LINK=y
 # end of Example Connection Configuration
 
 #
+# Example Configuration
+#
+CONFIG_WEBSOCKET_URI_FROM_STRING=y
+# CONFIG_WEBSOCKET_URI_FROM_STDIN is not set
+CONFIG_WEBSOCKET_URI="ws://tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com:443"
+# end of Example Configuration
+
+#
 # Compiler options
 #
 CONFIG_COMPILER_OPTIMIZATION_DEFAULT=y

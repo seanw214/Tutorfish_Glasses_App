@@ -9,6 +9,7 @@
 #include "driver/gpio.h"
 #include "esp_sleep.h"
 #include "http_request.h"
+#include "websocket.h"
 
 #include "nvs.h"
 #include "littlefs_helper.h"
@@ -525,7 +526,9 @@ void app_main(void)
             break;
         case TUTORFISH_CAPTURE_PIC:
             ESP_LOGI(TAG, "capturing picture..");
-            vTaskDelay(2000 / portTICK_PERIOD_MS);
+            //vTaskDelay(2000 / portTICK_PERIOD_MS);
+
+            websocket_app_start();
 
             state_machine = TUTORFISH_POLL_DB;
             break;
