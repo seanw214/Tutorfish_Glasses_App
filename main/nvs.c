@@ -138,6 +138,41 @@ esp_err_t write_nvs_session_cookie(char *session_cookie)
     return err;
 }
 
+esp_err_t write_nvs_email_pass(char *user_email, char *user_pass)
+{
+    nvs_handle_t nvs_handle;
+
+    esp_err_t err = nvs_open("nvs", NVS_READWRITE, &nvs_handle);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "nvs_open err: %s", esp_err_to_name(err));
+        return err;
+    }
+    
+    err = nvs_set_str(nvs_handle, "user_email", user_email);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "write_nvs_email_pass() nvs_set_str(user_email) err: %s", esp_err_to_name(err));
+    }
+
+    err = nvs_set_str(nvs_handle, "user_pass", user_pass);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "write_nvs_email_pass() nvs_set_str(user_pass) err: %s", esp_err_to_name(err));
+    }
+
+    nvs_commit(nvs_handle);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "write_nvs_email_pass() nvs_commit() err: %s", esp_err_to_name(err));
+    }
+
+    nvs_close(nvs_handle);
+
+    return err;
+
+}
+
 esp_err_t erase_nvs_key(char *nvs_key)
 {
     nvs_handle_t nvs_handle;

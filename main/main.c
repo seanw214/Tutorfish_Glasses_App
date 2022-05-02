@@ -106,6 +106,12 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(err);
 
+    err = write_nvs_email_pass("student@email.com", "!Password1");
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "write_nvs_email_pass() err: %s", esp_err_to_name(err));
+    }
+
     err = read_nvs_email_pass();
     if (err != ESP_OK)
     {

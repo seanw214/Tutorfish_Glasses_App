@@ -66,7 +66,7 @@ static camera_config_t camera_config = {
 
     
     .pixel_format = PIXFORMAT_JPEG, //YUV422,GRAYSCALE,RGB565,JPEG,PIXFORMAT_RGB565
-    .frame_size = FRAMESIZE_FHD, //FRAMESIZE_QVGA,  //FRAMESIZE_UXGA,  //QQVGA-UXGA Do not use sizes above QVGA when not JPEG
+    .frame_size = FRAMESIZE_VGA, //FRAMESIZE_QVGA,  //FRAMESIZE_UXGA,  //QQVGA-UXGA Do not use sizes above QVGA when not JPEG
     .jpeg_quality = 12, //0-63 lower number means higher quality
 
    /*
@@ -76,7 +76,7 @@ static camera_config_t camera_config = {
     .jpeg_quality = 12,
     */
 
-    .fb_count = 1,      //if more than one, i2s runs in continuous mode. Use only with JPEG
+    .fb_count = 2,      //if more than one, i2s runs in continuous mode. Use only with JPEG
     .grab_mode = CAMERA_GRAB_WHEN_EMPTY,
 };
 
@@ -111,14 +111,28 @@ esp_err_t init_camera_pwdn(uint8_t level)
     return err;
 }
 
+// esp_err_t toggle_camera_pwdn(uint8_t level)
+// {
+//     esp_err_t err;
+
+//     char camera_level[5] = "";
+//     level == 1 ? strcat(camera_level, "HIGH") : strcat(camera_level, "LOW");
+
+//     ESP_LOGI(TAG, "setting camera level %s", camera_level);
+
+//     err = gpio_set_level(CAM_PIN_PWDN, level);
+//     if (err != ESP_OK)
+//     {
+//         ESP_LOGE(TAG, "gpio_set_level() err: %s", esp_err_to_name(err));
+//         return err;
+//     }
+
+//     return err;
+// }
+
 esp_err_t toggle_camera_pwdn(uint8_t level)
 {
     esp_err_t err;
-
-    char camera_level[5] = "";
-    level == 1 ? strcat(camera_level, "HIGH") : strcat(camera_level, "LOW");
-
-    ESP_LOGI(TAG, "setting camera level %s", camera_level);
 
     err = gpio_set_level(CAM_PIN_PWDN, level);
     if (err != ESP_OK)
