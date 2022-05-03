@@ -182,7 +182,7 @@ bool websocket_app_start(void)
             camera_fb_t *pic = esp_camera_fb_get();
             if (pic != NULL)
             {
-                if (pic->len > 0 && pic_taken_increment++ >= 10)
+                if (pic->len > 0 && pic_taken_increment++ >= 1)
                 {
                     ESP_LOGI(TAG, "Picture sending! Its size is: %zu bytes", pic->len);
                     if (esp_websocket_client_send(client, &pic->buf, pic->len, portMAX_DELAY) > -1)

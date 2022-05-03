@@ -95,12 +95,27 @@ static camera_config_t camera_config = {
     // TODO : try to allocate more RAM
 
     .pixel_format = PIXFORMAT_JPEG, // YUV422,GRAYSCALE,RGB565,JPEG,PIXFORMAT_RGB565
-    .frame_size = FRAMESIZE_HD,   // FRAMESIZE_FHD, //FRAMESIZE_QVGA,  //FRAMESIZE_UXGA,  //QQVGA-UXGA Do not use sizes above QVGA when not JPEG
-    .jpeg_quality = 8,             // 0-63 lower number means higher quality
+    .frame_size = FRAMESIZE_UXGA,   // FRAMESIZE_FHD, //FRAMESIZE_QVGA,  //FRAMESIZE_UXGA,  //QQVGA-UXGA Do not use sizes above QVGA when not JPEG
+    .jpeg_quality = 6,             // 0-63 lower number means higher quality
 
     // FRAMESIZE_XGA 8
     // FRAMESIZE_VGA 8
+
     // FRAMESIZE_HD 8
+    // FRAMESIZE_HD 4
+    // FRAMESIZE_HD 2 looks similar to < 2
+
+    // FRAMESIZE_QXGA 16
+    // FRAMESIZE_QXGA 14 // works for screen pics
+
+    // FRAMESIZE_QXGA 10 // works for screen pics, wayyy better than 14
+
+    // FRAMESIZE_UXGA 6 // works on screen, the image is sensor cropped (which is better)
+    // FRAMESIZE_UXGA 5 // works but difference is minute
+
+
+
+
 
    /*
      // GRAYSCALE
@@ -143,25 +158,6 @@ esp_err_t init_camera_pwdn(uint8_t level)
     return err;
 }
 
-// esp_err_t toggle_camera_pwdn(uint8_t level)
-// {
-//     esp_err_t err;
-
-//     char camera_level[5] = "";
-//     level == 1 ? strcat(camera_level, "HIGH") : strcat(camera_level, "LOW");
-
-//     ESP_LOGI(TAG, "setting camera level %s", camera_level);
-
-//     err = gpio_set_level(CAM_PIN_PWDN, level);
-//     if (err != ESP_OK)
-//     {
-//         ESP_LOGE(TAG, "gpio_set_level() err: %s", esp_err_to_name(err));
-//         return err;
-//     }
-
-//     return err;
-// }
-
 esp_err_t toggle_camera_pwdn(uint8_t level)
 {
     esp_err_t err;
@@ -189,14 +185,14 @@ esp_err_t init_camera(void)
     return ESP_OK;
 }
 
-void capture_image(void)
-{
-    ESP_LOGI(TAG, "Taking picture...");
-    camera_fb_t *pic = esp_camera_fb_get();
+// void capture_image(void)
+// {
+//     ESP_LOGI(TAG, "Taking picture...");
+//     camera_fb_t *pic = esp_camera_fb_get();
 
-    // use pic->buf to access the image
-    ESP_LOGI(TAG, "Picture taken! Its size was: %zu bytes", pic->len);
-    esp_camera_fb_return(pic);
+//     // use pic->buf to access the image
+//     ESP_LOGI(TAG, "Picture taken! Its size was: %zu bytes", pic->len);
+//     esp_camera_fb_return(pic);
 
-    vTaskDelay(5000 / portTICK_PERIOD_MS);
-}
+//     vTaskDelay(5000 / portTICK_PERIOD_MS);
+// }
