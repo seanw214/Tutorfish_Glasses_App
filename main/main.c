@@ -148,6 +148,7 @@ void app_main(void)
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "init_i2s() err: %s", esp_err_to_name(err));
+        esp_restart();
     }
 
     err = init_camera_pwdn(CAMERA_ON);
@@ -160,6 +161,7 @@ void app_main(void)
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "init_camera() err: %s", esp_err_to_name(err));
+        esp_restart();
     }
 
     err = toggle_camera_pwdn(CAMERA_OFF);
@@ -172,12 +174,14 @@ void app_main(void)
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "init_home_button() err: %s", esp_err_to_name(err));
+        esp_restart();
     }
 
     err = init_touch();
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "init_touch() err: %s", esp_err_to_name(err));
+        esp_restart();
     }
 
     err = init_blue_led();
@@ -531,10 +535,13 @@ void app_main(void)
             }
             break;
         case TUTORFISH_CAPTURE_PIC:
-            ESP_LOGI(TAG, "capturing picture..");
-            //vTaskDelay(2000 / portTICK_PERIOD_MS);
 
-            websocket_app_start();
+            if (!websocket_app_start())
+            {
+                // pic did not send
+                state_machine = TUTORFISH_SUBMIT_QUESTION_COMPLETE;
+                break;
+            }
 
             state_machine = TUTORFISH_POLL_DB;
             break;

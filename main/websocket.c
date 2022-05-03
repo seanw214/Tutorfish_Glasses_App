@@ -96,7 +96,7 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
     }
 }
 
-void websocket_app_start(void)
+bool websocket_app_start(void)
 {
     esp_websocket_client_config_t websocket_cfg = {};
 
@@ -139,6 +139,7 @@ void websocket_app_start(void)
     strcat(post_data, json_obj_ending);
     */
 
+    /*
     const char *json_obj_beginning = "{\"client_type\":\"STUDENT\",\"session_cookie\":\"";
     const char *session_cookie = "session=123";
 
@@ -149,6 +150,7 @@ void websocket_app_start(void)
     char *data;
 
     const char *json_obj_ending = "\"}";
+    */
 
     ESP_LOGI(TAG, "Connecting to %s...", websocket_cfg.uri);
 
@@ -167,47 +169,59 @@ void websocket_app_start(void)
     // give camera time to warm up
     vTaskDelay(500 / portTICK_PERIOD_MS);
 
-    int i = 0;
-    int ii = 0;
-    while (i < 1)
+    bool pic_sent = false;
+
+    int pic_sent_increment = 0;
+    int pic_null_increment = 0;
+    int pic_taken_increment = 0;
+    while (pic_sent_increment < 1)
     {
         if (esp_websocket_client_is_connected(client))
         {
             ESP_LOGI(TAG, "Taking picture...");
             camera_fb_t *pic = esp_camera_fb_get();
-            if (pic->len > 0 && ii >= 10)
+            if (pic != NULL)
             {
-                ESP_LOGI(TAG, "Picture taken! Its size was: %zu bytes", pic->len);
-                if (esp_websocket_client_send(client, &pic->buf, pic->len, portMAX_DELAY) > -1)
+                if (pic->len > 0 && pic_taken_increment++ >= 10)
                 {
-                    i++;
+                    ESP_LOGI(TAG, "Picture sending! Its size is: %zu bytes", pic->len);
+                    if (esp_websocket_client_send(client, &pic->buf, pic->len, portMAX_DELAY) > -1)
+                    {
+                        pic_sent = true;
+                        pic_sent_increment++;
+                    }
+
+                    /*
+                    const int post_data_len = strlen(json_obj_beginning) + strlen(session_cookie) + strlen(json_obj_mid_0) + strlen(user_email) + strlen(json_obj_mid_1) + pic->len + strlen(json_obj_ending);
+                    char *post_data = malloc(post_data_len);
+
+                    strcpy(post_data, json_obj_beginning);
+                    strcat(post_data, session_cookie);
+                    strcat(post_data, json_obj_mid_0);
+                    strcat(post_data, user_email);
+                    strcat(post_data, json_obj_mid_1);
+                    strcat(post_data, &pic->buf);
+                    strcat(post_data, json_obj_ending);
+
+                    //esp_websocket_client_send(client, post_data, post_data_len, portMAX_DELAY);
+
+                    esp_camera_fb_return(pic);
+                    free(post_data);
+                    post_data = NULL;
+                    */
                 }
-
-                /*
-                const int post_data_len = strlen(json_obj_beginning) + strlen(session_cookie) + strlen(json_obj_mid_0) + strlen(user_email) + strlen(json_obj_mid_1) + pic->len + strlen(json_obj_ending);
-                char *post_data = malloc(post_data_len);
-
-                strcpy(post_data, json_obj_beginning);
-                strcat(post_data, session_cookie);
-                strcat(post_data, json_obj_mid_0);
-                strcat(post_data, user_email);
-                strcat(post_data, json_obj_mid_1);
-                strcat(post_data, &pic->buf);
-                strcat(post_data, json_obj_ending);
-
-                //esp_websocket_client_send(client, post_data, post_data_len, portMAX_DELAY);
-
-                esp_camera_fb_return(pic);
-                free(post_data);
-                post_data = NULL;
-                */
+            }
+            else
+            {
+                printf("pic_null_increment: %d\n", pic_null_increment);
+                if (pic_null_increment++ >= 1)
+                {
+                    pic_sent = false;
+                    break;
+                }
             }
 
             esp_camera_fb_return(pic);
-            if (ii++ >= 11)
-            {
-                break;
-            }
         }
 
         vTaskDelay(10 / portTICK_PERIOD_MS);
@@ -219,18 +233,10 @@ void websocket_app_start(void)
         ESP_LOGE(TAG, "toggle_camera_pwdn() err: %s", esp_err_to_name(err));
     }
 
-    // int i = 0;
-    // while (i < 5) {
-    //     if (esp_websocket_client_is_connected(client)) {
-
-    //         ESP_LOGI(TAG, "Sending post_data: %s", post_data);
-    //         esp_websocket_client_send(client, post_data, strlen(post_data), portMAX_DELAY);
-    //     }
-    //     vTaskDelay(1000 / portTICK_RATE_MS);
-    // }
-
     xSemaphoreTake(shutdown_sema, portMAX_DELAY);
     esp_websocket_client_close(client, portMAX_DELAY);
     ESP_LOGI(TAG, "Websocket Stopped");
     esp_websocket_client_destroy(client);
+
+    return pic_sent;
 }

@@ -15,27 +15,54 @@
 #ifdef BOARD_WROVER_KIT
 
 #define CAM_PIN_PWDN 23 //-1
-#define CAM_PIN_RESET -1 
+#define CAM_PIN_RESET -1
 #define CAM_PIN_XCLK 22
 #define CAM_PIN_SIOD 26
 #define CAM_PIN_SIOC 27
 
-#define Y9_GPIO_NUM      14
-#define Y8_GPIO_NUM      34
-#define Y7_GPIO_NUM      39
-#define Y6_GPIO_NUM      38
-#define Y5_GPIO_NUM      33
-#define Y4_GPIO_NUM      21
-#define Y3_GPIO_NUM      13
-#define Y2_GPIO_NUM      15
+#define Y9_GPIO_NUM 14
+#define Y8_GPIO_NUM 34
+#define Y7_GPIO_NUM 39
+#define Y6_GPIO_NUM 38
+#define Y5_GPIO_NUM 33
+#define Y4_GPIO_NUM 21
+#define Y3_GPIO_NUM 13
+#define Y2_GPIO_NUM 15
 
 #define CAM_PIN_VSYNC 25
-#define CAM_PIN_HREF  4
+#define CAM_PIN_HREF 4
 #define CAM_PIN_PCLK 32
 
 #endif
 
 static const char *TAG = "camera.c";
+
+/*
+    FRAMESIZE_96X96,    // 96x96
+    FRAMESIZE_QQVGA,    // 160x120
+    FRAMESIZE_QCIF,     // 176x144
+    FRAMESIZE_HQVGA,    // 240x176
+    FRAMESIZE_240X240,  // 240x240
+    FRAMESIZE_QVGA,     // 320x240
+    FRAMESIZE_CIF,      // 400x296
+    FRAMESIZE_HVGA,     // 480x320
+    FRAMESIZE_VGA,      // 640x480
+    FRAMESIZE_SVGA,     // 800x600
+    FRAMESIZE_XGA,      // 1024x768
+    FRAMESIZE_HD,       // 1280x720
+    FRAMESIZE_SXGA,     // 1280x1024
+    FRAMESIZE_UXGA,     // 1600x1200
+    // 3MP Sensors
+    FRAMESIZE_FHD,      // 1920x1080
+    FRAMESIZE_P_HD,     //  720x1280
+    FRAMESIZE_P_3MP,    //  864x1536
+    FRAMESIZE_QXGA,     // 2048x1536
+    // 5MP Sensors
+    FRAMESIZE_QHD,      // 2560x1440
+    FRAMESIZE_WQXGA,    // 2560x1600
+    FRAMESIZE_P_FHD,    // 1080x1920
+    FRAMESIZE_QSXGA,    // 2560x1920
+*/
 
 static camera_config_t camera_config = {
     .pin_pwdn = CAM_PIN_PWDN,
@@ -57,43 +84,48 @@ static camera_config_t camera_config = {
     .pin_href = CAM_PIN_HREF,
     .pin_pclk = CAM_PIN_PCLK,
 
-    //XCLK 20MHz or 10MHz for OV2640 double FPS (Experimental)
+    // XCLK 20MHz or 10MHz for OV2640 double FPS (Experimental)
     .xclk_freq_hz = 20000000, // causes NO-SOI jpg error
     //.xclk_freq_hz = 10000000,
     //.xclk_freq_hz = 8000000,
     .ledc_timer = LEDC_TIMER_0,
     .ledc_channel = LEDC_CHANNEL_0,
 
-    
-    .pixel_format = PIXFORMAT_JPEG, //YUV422,GRAYSCALE,RGB565,JPEG,PIXFORMAT_RGB565
-    .frame_size = FRAMESIZE_VGA, //FRAMESIZE_QVGA,  //FRAMESIZE_UXGA,  //QQVGA-UXGA Do not use sizes above QVGA when not JPEG
-    .jpeg_quality = 12, //0-63 lower number means higher quality
+    // NOTE : I (2045) cam_hal: Allocating 629145 Byte frame buffer in PSRAM
+    // TODO : try to allocate more RAM
+
+    .pixel_format = PIXFORMAT_JPEG, // YUV422,GRAYSCALE,RGB565,JPEG,PIXFORMAT_RGB565
+    .frame_size = FRAMESIZE_HD,   // FRAMESIZE_FHD, //FRAMESIZE_QVGA,  //FRAMESIZE_UXGA,  //QQVGA-UXGA Do not use sizes above QVGA when not JPEG
+    .jpeg_quality = 8,             // 0-63 lower number means higher quality
+
+    // FRAMESIZE_XGA 8
+    // FRAMESIZE_VGA 8
+    // FRAMESIZE_HD 8
 
    /*
-    // GRAYSCALE
-    .pixel_format = PIXFORMAT_GRAYSCALE, //YUV422,GRAYSCALE,RGB565,JPEG
-    .frame_size = FRAMESIZE_VGA, //FRAMESIZE_WQXGA <- max_resolution FRAMESIZE_QHD FRAMESIZE_UXGA
-    .jpeg_quality = 12,
-    */
+     // GRAYSCALE
+     .pixel_format = PIXFORMAT_GRAYSCALE, //YUV422,GRAYSCALE,RGB565,JPEG
+     .frame_size = FRAMESIZE_HD, //FRAMESIZE_WQXGA <- max_resolution FRAMESIZE_QHD FRAMESIZE_UXGA
+     .jpeg_quality = 12,
+     */
 
-    .fb_count = 2,      //if more than one, i2s runs in continuous mode. Use only with JPEG
+    .fb_count = 1, // if more than one, i2s runs in continuous mode. Use only with JPEG
     .grab_mode = CAMERA_GRAB_WHEN_EMPTY,
 };
-
 
 esp_err_t init_camera_pwdn(uint8_t level)
 {
     esp_err_t err;
 
     gpio_config_t io_conf = {
-        .intr_type = GPIO_INTR_DISABLE, // disable interrupt
-        .mode = GPIO_MODE_OUTPUT,       // set as output mode
-        .pin_bit_mask = 1ULL << CAM_PIN_PWDN,     // bit mask of the pins that you want to set (e.g.GPIO18/19)
-        .pull_down_en = 0,              // disable pull-down mode
-        .pull_up_en = 1                 // disable pull-up mode
+        .intr_type = GPIO_INTR_DISABLE,       // disable interrupt
+        .mode = GPIO_MODE_OUTPUT,             // set as output mode
+        .pin_bit_mask = 1ULL << CAM_PIN_PWDN, // bit mask of the pins that you want to set (e.g.GPIO18/19)
+        .pull_down_en = 0,                    // disable pull-down mode
+        .pull_up_en = 1                       // disable pull-up mode
     };
 
-    //configure GPIO with the given settings
+    // configure GPIO with the given settings
     err = gpio_config(&io_conf);
     if (err != ESP_OK)
     {
@@ -146,7 +178,7 @@ esp_err_t toggle_camera_pwdn(uint8_t level)
 
 esp_err_t init_camera(void)
 {
-    //initialize the camera
+    // initialize the camera
     esp_err_t err = esp_camera_init(&camera_config);
     if (err != ESP_OK)
     {
