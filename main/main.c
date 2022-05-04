@@ -13,7 +13,6 @@
 
 #include "nvs.h"
 #include "littlefs_helper.h"
-#include "camera.h"
 #include "home_button.h"
 #include "touch.h"
 #include "menu.h"
@@ -38,6 +37,10 @@ bool repeat_tts_playback = false;
 
 #include "nvs_data_struct.h"
 nvs_data_t nvs_data;
+
+#include "camera.h"
+#include "esp_camera.h"
+camera_fb_t *pic;
 
 static const char *TAG = "main.c";
 
@@ -189,8 +192,6 @@ void app_main(void)
     {
         ESP_LOGE(TAG, "init_blue_led() err: %s", esp_err_to_name(err));
     }
-
-    
 
     /*
     if (audio_buf.welcome_01_wav_audio_buf == NULL)
@@ -461,7 +462,7 @@ void app_main(void)
             {
                 ESP_LOGI(TAG, "TUTORFISH_SUBMIT_QUESTION");
 
-                //play_submit_question_instructions();
+                // play_submit_question_instructions();
 
                 tutorfish_submit_question_init = true;
 
@@ -472,8 +473,84 @@ void app_main(void)
             }
             else
             {
-                // the glasses are being awaken after selecting TUTORFISH_SUBMIT_QUESTION
-                state_machine = CONNECT_TO_WIFI;
+                err = toggle_camera_pwdn(CAMERA_ON);
+                if (err != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "toggle_camera_pwdn() err: %s", esp_err_to_name(err));
+                }
+
+                if (audio_buf.taking_a_picture321_02_wav_audio_buf == NULL)
+                {
+                    err = malloc_taking_a_picture321_02_wav();
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "malloc_taking_a_picture321_02_wav() err: %s", esp_err_to_name(err));
+                    }
+
+                    if (err == ESP_OK)
+                    {
+                        err = playback_audio_file(audio_buf.taking_a_picture321_02_wav_audio_buf, audio_buf.taking_a_picture321_02_wav_len, 0.2f, false);
+                        if (err != ESP_OK)
+                        {
+                            ESP_LOGE(TAG, "playback_audio_file(taking_a_picture321_02_wav_audio_buf) err: %s", esp_err_to_name(err));
+                        }
+
+                        free_taking_a_picture321_02_wav();
+                    }
+                }
+
+                bool pic_taken = false;
+
+                // int pic_sent_increment = 0;
+                uint8_t pic_null_increment = 0;
+                uint8_t pic_taken_increment = 0;
+
+                // while (pic_sent_increment < 1)
+                while (true)
+                {
+                    ESP_LOGI(TAG, "Taking picture...");
+                    pic = esp_camera_fb_get();
+                    if (pic != NULL)
+                    {
+                        if (pic->len > 0 && pic_taken_increment++ >= 1)
+                        {
+                            ESP_LOGI(TAG, "Picture taken! Its size is: %zu bytes", pic->len);
+                            pic_taken = true;
+                            // pic_sent_increment++;
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        printf("pic_null_increment: %d\n", pic_null_increment);
+                        if (pic_null_increment++ >= 1)
+                        {
+                            pic_taken = false;
+                            break;
+                        }
+                    }
+
+                    esp_camera_fb_return(pic);
+                    vTaskDelay(10 / portTICK_PERIOD_MS);
+                }
+
+                err = toggle_camera_pwdn(CAMERA_OFF);
+                if (err != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "toggle_camera_pwdn() err: %s", esp_err_to_name(err));
+                }
+
+                if (pic_taken)
+                {
+                    state_machine = CONNECT_TO_WIFI;
+                    break;
+                }
+                else
+                {
+                    ESP_LOGE(TAG, "picture did not capture. try again");
+                    state_machine = TUTORFISH_SUBMIT_QUESTION_COMPLETE;
+                    break;
+                }
             }
 
             break;
@@ -490,7 +567,7 @@ void app_main(void)
         case TUTORFISH_VALIDATE_SESSION:
             // check if the session is valid
             ESP_LOGI(TAG, "Checking session validity...");
-            //size_t http_status = http_get_request("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/validate-session", "", nvs_data.session_cookie);
+            // size_t http_status = http_get_request("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/validate-session", "", nvs_data.session_cookie);
             size_t http_status = http_get_request("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/validate-session", "session=", NULL);
             // Ok: session cookie valid
             if (http_status == 200)
@@ -536,9 +613,14 @@ void app_main(void)
             break;
         case TUTORFISH_CAPTURE_PIC:
 
-            if (!websocket_app_start())
+            if (!websocket_app_start(pic))
             {
                 // pic did not send
+
+                // decrease jpg_quality NVS entry
+
+                // playback error
+
                 state_machine = TUTORFISH_SUBMIT_QUESTION_COMPLETE;
                 break;
             }

@@ -85,9 +85,7 @@ static camera_config_t camera_config = {
     .pin_pclk = CAM_PIN_PCLK,
 
     // XCLK 20MHz or 10MHz for OV2640 double FPS (Experimental)
-    .xclk_freq_hz = 20000000, // causes NO-SOI jpg error
-    //.xclk_freq_hz = 10000000,
-    //.xclk_freq_hz = 8000000,
+    .xclk_freq_hz = 20000000,
     .ledc_timer = LEDC_TIMER_0,
     .ledc_channel = LEDC_CHANNEL_0,
 
@@ -96,7 +94,7 @@ static camera_config_t camera_config = {
 
     .pixel_format = PIXFORMAT_JPEG, // YUV422,GRAYSCALE,RGB565,JPEG,PIXFORMAT_RGB565
     .frame_size = FRAMESIZE_UXGA,   // FRAMESIZE_FHD, //FRAMESIZE_QVGA,  //FRAMESIZE_UXGA,  //QQVGA-UXGA Do not use sizes above QVGA when not JPEG
-    .jpeg_quality = 6,             // 0-63 lower number means higher quality
+    .jpeg_quality = 24,             // 0-63 lower number means higher quality
 
     // FRAMESIZE_XGA 8
     // FRAMESIZE_VGA 8
@@ -113,8 +111,7 @@ static camera_config_t camera_config = {
     // FRAMESIZE_UXGA 6 // works on screen, the image is sensor cropped (which is better)
     // FRAMESIZE_UXGA 5 // works but difference is minute
 
-
-
+    // TODO : create function that decreases the jpeg_quality if the image does not capture (read/write from nvs)
 
 
    /*

@@ -25,8 +25,9 @@
 
 #include "camera.h"
 #include "esp_camera.h"
+#include "audio_io.h"
 
-#define NO_DATA_TIMEOUT_SEC 10
+#define NO_DATA_TIMEOUT_SEC 30
 
 static const char *TAG = "WEBSOCKET";
 
@@ -96,7 +97,7 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
     }
 }
 
-bool websocket_app_start(void)
+bool websocket_app_start(camera_fb_t *pic)
 {
     esp_websocket_client_config_t websocket_cfg = {};
 
@@ -160,6 +161,7 @@ bool websocket_app_start(void)
     esp_websocket_client_start(client);
     xTimerStart(shutdown_signal_timer, portMAX_DELAY);
 
+    /*
     esp_err_t err = toggle_camera_pwdn(CAMERA_ON);
     if (err != ESP_OK)
     {
@@ -167,7 +169,27 @@ bool websocket_app_start(void)
     }
 
     // give camera time to warm up
-    vTaskDelay(500 / portTICK_PERIOD_MS);
+    //vTaskDelay(500 / portTICK_PERIOD_MS);
+
+    if (audio_buf.taking_a_picture321_02_wav_audio_buf == NULL)
+    {
+        err = malloc_taking_a_picture321_02_wav();
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "malloc_taking_a_picture321_02_wav() err: %s", esp_err_to_name(err));
+        }
+
+        if (err == ESP_OK)
+        {
+            err = playback_audio_file(audio_buf.taking_a_picture321_02_wav_audio_buf, audio_buf.taking_a_picture321_02_wav_len, 0.2f, false);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "playback_audio_file(taking_a_picture321_02_wav_audio_buf) err: %s", esp_err_to_name(err));
+            }
+
+            free_taking_a_picture321_02_wav();
+        }
+    }
 
     bool pic_sent = false;
 
@@ -184,6 +206,26 @@ bool websocket_app_start(void)
             {
                 if (pic->len > 0 && pic_taken_increment++ >= 1)
                 {
+                    if (audio_buf.uploading_the_picture_please_wait_00_wav_audio_buf == NULL)
+                    {
+                        err = malloc_uploading_the_picture_please_wait_00_wav();
+                        if (err != ESP_OK)
+                        {
+                            ESP_LOGE(TAG, "malloc_uploading_the_picture_please_wait_00_wav() err: %s", esp_err_to_name(err));
+                        }
+
+                        if (err == ESP_OK)
+                        {
+                            err = playback_audio_file(audio_buf.uploading_the_picture_please_wait_00_wav_audio_buf, audio_buf.uploading_the_picture_please_wait_00_wav_len, 0.2f, false);
+                            if (err != ESP_OK)
+                            {
+                                ESP_LOGE(TAG, "playback_audio_file(uploading_the_picture_please_wait_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                            }
+
+                            free_uploading_the_picture_please_wait_00_wav();
+                        }
+                    }
+
                     ESP_LOGI(TAG, "Picture sending! Its size is: %zu bytes", pic->len);
                     if (esp_websocket_client_send(client, &pic->buf, pic->len, portMAX_DELAY) > -1)
                     {
@@ -191,24 +233,23 @@ bool websocket_app_start(void)
                         pic_sent_increment++;
                     }
 
-                    /*
-                    const int post_data_len = strlen(json_obj_beginning) + strlen(session_cookie) + strlen(json_obj_mid_0) + strlen(user_email) + strlen(json_obj_mid_1) + pic->len + strlen(json_obj_ending);
-                    char *post_data = malloc(post_data_len);
 
-                    strcpy(post_data, json_obj_beginning);
-                    strcat(post_data, session_cookie);
-                    strcat(post_data, json_obj_mid_0);
-                    strcat(post_data, user_email);
-                    strcat(post_data, json_obj_mid_1);
-                    strcat(post_data, &pic->buf);
-                    strcat(post_data, json_obj_ending);
+                    // const int post_data_len = strlen(json_obj_beginning) + strlen(session_cookie) + strlen(json_obj_mid_0) + strlen(user_email) + strlen(json_obj_mid_1) + pic->len + strlen(json_obj_ending);
+                    // char *post_data = malloc(post_data_len);
 
-                    //esp_websocket_client_send(client, post_data, post_data_len, portMAX_DELAY);
+                    // strcpy(post_data, json_obj_beginning);
+                    // strcat(post_data, session_cookie);
+                    // strcat(post_data, json_obj_mid_0);
+                    // strcat(post_data, user_email);
+                    // strcat(post_data, json_obj_mid_1);
+                    // strcat(post_data, &pic->buf);
+                    // strcat(post_data, json_obj_ending);
 
-                    esp_camera_fb_return(pic);
-                    free(post_data);
-                    post_data = NULL;
-                    */
+                    // //esp_websocket_client_send(client, post_data, post_data_len, portMAX_DELAY);
+
+                    // esp_camera_fb_return(pic);
+                    // free(post_data);
+                    // post_data = NULL;
                 }
             }
             else
@@ -231,6 +272,42 @@ bool websocket_app_start(void)
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "toggle_camera_pwdn() err: %s", esp_err_to_name(err));
+    }
+    */
+
+    if (audio_buf.uploading_the_picture_please_wait_00_wav_audio_buf == NULL)
+    {
+        esp_err_t err = malloc_uploading_the_picture_please_wait_00_wav();
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "malloc_uploading_the_picture_please_wait_00_wav() err: %s", esp_err_to_name(err));
+        }
+
+        if (err == ESP_OK)
+        {
+            err = playback_audio_file(audio_buf.uploading_the_picture_please_wait_00_wav_audio_buf, audio_buf.uploading_the_picture_please_wait_00_wav_len, 0.2f, false);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "playback_audio_file(uploading_the_picture_please_wait_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+            }
+
+            free_uploading_the_picture_please_wait_00_wav();
+        }
+    }
+
+    bool pic_sent = false;
+
+    if (esp_websocket_client_is_connected(client))
+    {
+        if (esp_websocket_client_send(client, &pic->buf, pic->len, portMAX_DELAY) > -1)
+        {
+            pic_sent = true;
+        }
+    }
+
+    if (pic != NULL)
+    {
+        esp_camera_fb_return(pic);
     }
 
     xSemaphoreTake(shutdown_sema, portMAX_DELAY);

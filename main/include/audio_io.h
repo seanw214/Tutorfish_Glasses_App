@@ -4,7 +4,6 @@
 esp_err_t init_i2s(void);
 esp_err_t _i2s_stop(void);
 esp_err_t playback_audio_file(int16_t *audio_file_buf, int audio_file_len, float audio_volume, bool audio_playback_stoppable);
-esp_err_t playback_audio_file_2(int16_t *audio_file_buf, int audio_file_len, float audio_volume, bool audio_playback_stoppable);
 esp_err_t play_submit_question_instructions(void);
 
 esp_err_t malloc_returning_home_wav(void);
@@ -39,7 +38,11 @@ void free_the_camera_take_a_pic_01(void);
 esp_err_t malloc_to_conserve_battery_01_wav(void);
 void free_to_conserve_battery_01(void);
 
-void malloc_p_wav(void);
+esp_err_t malloc_taking_a_picture321_02_wav(void);
+void free_taking_a_picture321_02_wav(void);
+
+esp_err_t malloc_uploading_the_picture_please_wait_00_wav(void);
+void free_uploading_the_picture_please_wait_00_wav(void);
 
 typedef struct
 {
@@ -70,6 +73,12 @@ typedef struct
 
     int8_t *to_conserve_battery_01_wav_audio_buf;
     int to_conserve_battery_01_wav_len;
+
+    int8_t *taking_a_picture321_02_wav_audio_buf;
+    int taking_a_picture321_02_wav_len;
+
+    int8_t *uploading_the_picture_please_wait_00_wav_audio_buf;
+    int uploading_the_picture_please_wait_00_wav_len;
 
     // system audio
     int16_t *returning_home_wav_audio_buf;

@@ -12,8 +12,8 @@
 #include "look_at_your_question_01.h"
 #include "the_camera_take_a_pic_01.h"
 #include "to_conserve_battery_01.h"
-
-#include "p_00.h" //for test, remove later
+#include "taking_a_picture321_02.h"
+#include "uploading_the_picture_please_wait_00.h"
 
 static const char *TAG = "audio_io.c";
 
@@ -414,16 +414,44 @@ void free_to_conserve_battery_01(void)
     audio_buf.to_conserve_battery_01_wav_audio_buf = NULL;
 }
 
-void malloc_p_wav(void)
+esp_err_t malloc_taking_a_picture321_02_wav(void)
 {
-    audio_buf.p_wav_len = p_wav_len;
+    audio_buf.taking_a_picture321_02_wav_len = taking_a_picture321_02_wav_len;
 
-    audio_buf.p_wav_audio_buf = malloc(audio_buf.p_wav_len);
+    audio_buf.taking_a_picture321_02_wav_audio_buf = malloc(audio_buf.taking_a_picture321_02_wav_len);
 
-    for (int i = 0; i < audio_buf.p_wav_len; i++)
+    for (int i = 0; i < audio_buf.taking_a_picture321_02_wav_len; i++)
     {
-        audio_buf.p_wav_audio_buf[i] = p_wav[i];
+        audio_buf.taking_a_picture321_02_wav_audio_buf[i] = taking_a_picture321_02_wav[i];
     }
+
+    return ESP_OK;
+}
+
+void free_taking_a_picture321_02_wav(void)
+{
+    free(audio_buf.taking_a_picture321_02_wav_audio_buf);
+    audio_buf.taking_a_picture321_02_wav_audio_buf = NULL;
+}
+
+esp_err_t malloc_uploading_the_picture_please_wait_00_wav(void)
+{
+    audio_buf.uploading_the_picture_please_wait_00_wav_len = uploading_the_picture_please_wait_00_wav_len;
+
+    audio_buf.uploading_the_picture_please_wait_00_wav_audio_buf = malloc(audio_buf.uploading_the_picture_please_wait_00_wav_len);
+
+    for (int i = 0; i < audio_buf.uploading_the_picture_please_wait_00_wav_len; i++)
+    {
+        audio_buf.uploading_the_picture_please_wait_00_wav_audio_buf[i] = uploading_the_picture_please_wait_00_wav[i];
+    }
+
+    return ESP_OK;
+}
+
+void free_uploading_the_picture_please_wait_00_wav(void)
+{
+    free(audio_buf.uploading_the_picture_please_wait_00_wav_audio_buf);
+    audio_buf.uploading_the_picture_please_wait_00_wav_audio_buf = NULL;
 }
 
 esp_err_t play_submit_question_instructions(void)
@@ -555,6 +583,7 @@ esp_err_t playback_audio_file(int16_t *audio_file_buf, int audio_file_len, float
     return err;
 }
 
+/*
 esp_err_t playback_audio_file_2(int16_t *audio_file_buf, int audio_file_len, float audio_volume, bool audio_playback_stoppable)
 {
     esp_err_t err;
@@ -642,6 +671,7 @@ esp_err_t playback_audio_file_2(int16_t *audio_file_buf, int audio_file_len, flo
 
     return err;
 }
+*/
 
 esp_err_t _i2s_stop(void)
 {
