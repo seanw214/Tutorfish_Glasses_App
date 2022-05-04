@@ -3,11 +3,13 @@
 #include <nvs_flash.h>
 #include <sys/param.h>
 #include <string.h>
+#include <math.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
 #include "esp_camera.h"
+#include "nvs_data_struct.h"
 
 #define BOARD_WROVER_KIT 1
 
@@ -64,6 +66,70 @@ static const char *TAG = "camera.c";
     FRAMESIZE_QSXGA,    // 2560x1920
 */
 
+camera_config_t setup_camera_config(void)
+{
+    const uint8_t base_jpg_quality = 6;
+    uint8_t jpg_quality = base_jpg_quality;
+
+    if (nvs_data.jpeg_quality_exponent > 0 && nvs_data.jpeg_quality_exponent < 6)
+    {
+        // exponential growth formula
+        // x(t) = x0 * (1 + (r / 100))t
+
+        // x(t) = growth
+        // x0 = intial value
+        // r = rate of growth (converts to percentage eg. 33% growth rate)
+        // t = time
+
+        // 0 jpeg_quality_exponent = 6
+        // 6 * 1.33^1 = 8
+        // 6 * 1.33^2 = 11
+        // 6 * 1.33^3 = 14
+        // 6 * 1.33^4 = 19
+        // 6 * 1.33^5 = 25
+
+        jpg_quality = (uint8_t)round(base_jpg_quality * pow(1.33, nvs_data.jpeg_quality_exponent));
+    }
+
+    ESP_LOGI(TAG, "setup_camera_config()");
+    ESP_LOGI(TAG, "nvs_data.jpeg_quality_exponent: %d", nvs_data.jpeg_quality_exponent);
+    ESP_LOGI(TAG, "jpg_quality: %d", jpg_quality);
+
+    const camera_config_t camera_config = {
+        .pin_pwdn = CAM_PIN_PWDN,
+        .pin_reset = CAM_PIN_RESET,
+        .pin_xclk = CAM_PIN_XCLK,
+        .pin_sscb_sda = CAM_PIN_SIOD,
+        .pin_sscb_scl = CAM_PIN_SIOC,
+
+        .pin_d0 = Y2_GPIO_NUM,
+        .pin_d1 = Y3_GPIO_NUM,
+        .pin_d2 = Y4_GPIO_NUM,
+        .pin_d3 = Y5_GPIO_NUM,
+        .pin_d4 = Y6_GPIO_NUM,
+        .pin_d5 = Y7_GPIO_NUM,
+        .pin_d6 = Y8_GPIO_NUM,
+        .pin_d7 = Y9_GPIO_NUM,
+
+        .pin_vsync = CAM_PIN_VSYNC,
+        .pin_href = CAM_PIN_HREF,
+        .pin_pclk = CAM_PIN_PCLK,
+
+        .xclk_freq_hz = 20000000,
+        .ledc_timer = LEDC_TIMER_0,
+        .ledc_channel = LEDC_CHANNEL_0,
+
+        .pixel_format = PIXFORMAT_JPEG, // YUV422,GRAYSCALE,RGB565,JPEG,PIXFORMAT_RGB565
+        .frame_size = FRAMESIZE_UXGA,   // FRAMESIZE_FHD, //FRAMESIZE_QVGA,  //FRAMESIZE_UXGA,  //QQVGA-UXGA Do not use sizes above QVGA when not JPEG
+        .jpeg_quality = jpg_quality,    // 0-63 lower number means higher quality
+
+        .fb_count = 1, // if more than one, i2s runs in continuous mode. Use only with JPEG
+        .grab_mode = CAMERA_GRAB_WHEN_EMPTY,
+    };
+
+    return camera_config;
+}
+
 static camera_config_t camera_config = {
     .pin_pwdn = CAM_PIN_PWDN,
     .pin_reset = CAM_PIN_RESET,
@@ -112,14 +178,18 @@ static camera_config_t camera_config = {
     // FRAMESIZE_UXGA 5 // works but difference is minute
 
     // TODO : create function that decreases the jpeg_quality if the image does not capture (read/write from nvs)
+    // TODO : sepearate shutter from countdown, play shutter when the image has actually captured
 
+    // NOTE : time (t) increases by 1 after every failed camera capture until it reaches 5
+    //
+    // upon successful capture, decrease the (t) variable by 1
 
-   /*
-     // GRAYSCALE
-     .pixel_format = PIXFORMAT_GRAYSCALE, //YUV422,GRAYSCALE,RGB565,JPEG
-     .frame_size = FRAMESIZE_HD, //FRAMESIZE_WQXGA <- max_resolution FRAMESIZE_QHD FRAMESIZE_UXGA
-     .jpeg_quality = 12,
-     */
+    /*
+      // GRAYSCALE
+      .pixel_format = PIXFORMAT_GRAYSCALE, //YUV422,GRAYSCALE,RGB565,JPEG
+      .frame_size = FRAMESIZE_HD, //FRAMESIZE_WQXGA <- max_resolution FRAMESIZE_QHD FRAMESIZE_UXGA
+      .jpeg_quality = 12,
+      */
 
     .fb_count = 1, // if more than one, i2s runs in continuous mode. Use only with JPEG
     .grab_mode = CAMERA_GRAB_WHEN_EMPTY,
@@ -172,6 +242,9 @@ esp_err_t toggle_camera_pwdn(uint8_t level)
 esp_err_t init_camera(void)
 {
     // initialize the camera
+    //esp_err_t err = esp_camera_init(&camera_config);
+
+    camera_config_t camera_config = setup_camera_config();
     esp_err_t err = esp_camera_init(&camera_config);
     if (err != ESP_OK)
     {

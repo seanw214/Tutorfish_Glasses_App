@@ -27,7 +27,7 @@
 #include "esp_camera.h"
 #include "audio_io.h"
 
-#define NO_DATA_TIMEOUT_SEC 30
+#define NO_DATA_TIMEOUT_SEC 10
 
 static const char *TAG = "WEBSOCKET";
 
@@ -302,6 +302,11 @@ bool websocket_app_start(camera_fb_t *pic)
         if (esp_websocket_client_send(client, &pic->buf, pic->len, portMAX_DELAY) > -1)
         {
             pic_sent = true;
+            ESP_LOGI(TAG, "Picture has been sent to the websocket!");
+        }
+        else
+        {
+            ESP_LOGE(TAG, "Error sending pic to the websocket");
         }
     }
 

@@ -121,17 +121,56 @@ void app_main(void)
         ESP_LOGE(TAG, "read_nvs_email_pass() err: %s", esp_err_to_name(err));
     }
 
-    // err = erase_nvs_key("session_cookie");
-    // if (err != ESP_OK)
-    // {
-    //     ESP_LOGE(TAG, "erase_nvs_key() err: %s", esp_err_to_name(err));
-    // }
-
     err = read_nvs_session_cookie();
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "read_nvs_session_cookie() err: %s", esp_err_to_name(err));
     }
+
+    // err = erase_nvs_key("jpg_exponent");
+    // if (err != ESP_OK)
+    // {
+    //     ESP_LOGE(TAG, "erase_nvs_key() err: %s", esp_err_to_name(err));
+    // }
+
+    err = read_nvs_int("jpg_exponent", &nvs_data.jpeg_quality_exponent);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "read_nvs_int(jpg_exponent) err: %s", esp_err_to_name(err));
+
+        err = write_nvs_int("jpg_exponent", 0);
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "write_nvs_int(jpg_exponent) err: %s", esp_err_to_name(err));
+        }
+
+        err = read_nvs_int("jpg_exponent", &nvs_data.jpeg_quality_exponent);
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "read_nvs_int(jpg_exponent) read_nvs_int(jpg_exponent) err: %s", esp_err_to_name(err));
+        }
+    }
+
+    err = read_nvs_int("attempt_pic", &nvs_data.attempting_pic_capture);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "read_nvs_int() err: %s", esp_err_to_name(err));
+
+        err = write_nvs_int("attempt_pic", 0);
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "write_nvs_int(attempt_pic) err: %s", esp_err_to_name(err));
+        }
+
+        err = read_nvs_int("attempt_pic", &nvs_data.attempting_pic_capture);
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "read_nvs_int(attempt_pic) read_nvs_int(attempt_pic) err: %s", esp_err_to_name(err));
+        }
+    }
+
+    ESP_LOGI(TAG, "jpg_exponent: %d", nvs_data.jpeg_quality_exponent);
+    ESP_LOGI(TAG, "attempt_pic: %d", nvs_data.attempting_pic_capture);
 
     print_nvs_credentials();
 
@@ -458,11 +497,11 @@ void app_main(void)
             break;
         case TUTORFISH_SUBMIT_QUESTION:
 
-            if (!tutorfish_submit_question_init)
+            if (!tutorfish_submit_question_init && nvs_data.attempting_pic_capture == 0)
             {
                 ESP_LOGI(TAG, "TUTORFISH_SUBMIT_QUESTION");
 
-                // play_submit_question_instructions();
+                play_submit_question_instructions();
 
                 tutorfish_submit_question_init = true;
 
@@ -500,12 +539,9 @@ void app_main(void)
                 }
 
                 bool pic_taken = false;
-
-                // int pic_sent_increment = 0;
                 uint8_t pic_null_increment = 0;
                 uint8_t pic_taken_increment = 0;
 
-                // while (pic_sent_increment < 1)
                 while (true)
                 {
                     ESP_LOGI(TAG, "Taking picture...");
@@ -516,7 +552,6 @@ void app_main(void)
                         {
                             ESP_LOGI(TAG, "Picture taken! Its size is: %zu bytes", pic->len);
                             pic_taken = true;
-                            // pic_sent_increment++;
                             break;
                         }
                     }
@@ -542,13 +577,81 @@ void app_main(void)
 
                 if (pic_taken)
                 {
+                    if (nvs_data.jpeg_quality_exponent > 0)
+                    {
+                        const uint8_t write_val = nvs_data.jpeg_quality_exponent - 1;
+
+                        // decrease jpg_quality inside nvs
+                        err = write_nvs_int("jpg_exponent", write_val);
+                        if (err != ESP_OK)
+                        {
+                            ESP_LOGE(TAG, "write_nvs_int(jpeg_quality_exponent) err: %s", esp_err_to_name(err));
+                        }
+                    }
+
+                    // write the state to nvs
+                    err = write_nvs_int("attempt_pic", 0);
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "write_nvs_int(attempting_pic_capture) err: %s", esp_err_to_name(err));
+                    }
+
+                    // NOTE : the improved jpg quality wont take effect until the user restarts the esp32
+
                     state_machine = CONNECT_TO_WIFI;
                     break;
                 }
                 else
                 {
-                    ESP_LOGE(TAG, "picture did not capture. try again");
-                    state_machine = TUTORFISH_SUBMIT_QUESTION_COMPLETE;
+                    // pic error, usually happens when lighting conditions are poor
+                    // lowering the camera_config jpg_quality value fixes the issue
+
+                    // playback error message
+                    if (audio_buf.error_message_00_wav_audio_buf == NULL)
+                    {
+                        err = malloc_error_message_00_wav();
+                        if (err != ESP_OK)
+                        {
+                            ESP_LOGE(TAG, "malloc_error_message_00_wav() err: %s", esp_err_to_name(err));
+                        }
+
+                        if (err == ESP_OK)
+                        {
+                            err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, 0.2f, false);
+                            if (err != ESP_OK)
+                            {
+                                ESP_LOGE(TAG, "playback_audio_file(error_message_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                            }
+
+                            free_error_message_00_wav();
+                        }
+                    }
+
+                    if (nvs_data.jpeg_quality_exponent < 5)
+                    {
+                        const uint8_t write_val = nvs_data.jpeg_quality_exponent + 1;
+
+                        // increase jpg_quality inside nvs
+                        err = write_nvs_int("jpg_exponent", write_val);
+                        if (err != ESP_OK)
+                        {
+                            ESP_LOGE(TAG, "write_nvs_int(jpg_exponent) err: %s", esp_err_to_name(err));
+                        }
+                    }
+                    else if (nvs_data.jpeg_quality_exponent == 5)
+                    {
+                        ESP_LOGE(TAG, "User needs better lighting conditions");
+                    }
+
+                    // write the state to nvs
+                    err = write_nvs_int("attempt_pic", 1);
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "write_nvs_int(attempt_pic) err: %s", esp_err_to_name(err));
+                    }
+
+                    // restart esp so the camera can init with new jpeg settings
+                    esp_restart();
                     break;
                 }
             }
@@ -612,14 +715,31 @@ void app_main(void)
             }
             break;
         case TUTORFISH_CAPTURE_PIC:
-
+        
             if (!websocket_app_start(pic))
             {
-                // pic did not send
+                // pic did not send to websocket
 
-                // decrease jpg_quality NVS entry
+                // playback error message
+                if (audio_buf.error_message_00_wav_audio_buf == NULL)
+                {
+                    err = malloc_error_message_00_wav();
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "malloc_error_message_00_wav() err: %s", esp_err_to_name(err));
+                    }
 
-                // playback error
+                    if (err == ESP_OK)
+                    {
+                        err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, 0.2f, false);
+                        if (err != ESP_OK)
+                        {
+                            ESP_LOGE(TAG, "playback_audio_file(error_message_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                        }
+
+                        free_error_message_00_wav();
+                    }
+                }
 
                 state_machine = TUTORFISH_SUBMIT_QUESTION_COMPLETE;
                 break;

@@ -13,6 +13,8 @@ typedef struct
     size_t pass_len;
     char *session_cookie;
     size_t session_cookie_len;
+    uint8_t jpeg_quality_exponent;
+    uint8_t attempting_pic_capture; // 0 = false; 1 = true;
 } nvs_data_t;
 
 extern nvs_data_t nvs_data;

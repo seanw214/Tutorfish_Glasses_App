@@ -44,6 +44,9 @@ void free_taking_a_picture321_02_wav(void);
 esp_err_t malloc_uploading_the_picture_please_wait_00_wav(void);
 void free_uploading_the_picture_please_wait_00_wav(void);
 
+esp_err_t malloc_error_message_00_wav(void);
+void free_error_message_00_wav(void);
+
 typedef struct
 {
     // bool hfp_i2s_playing;
@@ -95,6 +98,9 @@ typedef struct
 
     int16_t *wifi_disconnect_00_wav_audio_buf;
     int wifi_disconnect_00_wav_audio_len;
+
+    int16_t *error_message_00_wav_audio_buf;
+    int error_message_00_wav_audio_len;
 } audio_buf_t;
 
 extern audio_buf_t audio_buf;
