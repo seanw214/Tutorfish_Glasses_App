@@ -300,6 +300,7 @@ void app_main(void)
     */
 
     state_machine = TUTORFISH_HOME;
+    //state_machine = CONNECT_TO_WIFI;
 
     while (true)
     {
@@ -382,6 +383,7 @@ void app_main(void)
                 wifi_bt_status.wifi_conn = true;
 
                 state_machine = TUTORFISH_VALIDATE_SESSION;
+                //state_machine = TUTORFISH_POLL_DB;
                 break;
             }
             else
@@ -704,8 +706,7 @@ void app_main(void)
         case TUTORFISH_VALIDATE_SESSION:
             // check if the session is valid
             ESP_LOGI(TAG, "Checking session validity...");
-            //size_t http_status = http_get_request("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/student-question-status", "documentId", true);
-            size_t http_status = http_get_request("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/validate-session", NULL, true);
+            size_t http_status = http_get_request2("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/validate-session", NULL, true);
             // Ok: session cookie valid
             if (http_status == 200)
             {
@@ -715,7 +716,6 @@ void app_main(void)
             // Unauthorized/Bad Request: session cookie has expired/missing session_cookie "Cookie" header
             else if (http_status == 401 || http_status == 400)
             {
-                /*
                 ESP_LOGW(TAG, "TUTORFISH_VALIDATE_SESSION http_get_request() http_status: %d", http_status);
                 ESP_LOGI(TAG, "Getting new session cookie...");
 
@@ -728,9 +728,8 @@ void app_main(void)
 
                 print_nvs_credentials();
 
-                // add timeout so that firebase can prepare
-                vTaskDelay(3000 / portTICK_PERIOD_MS);
-                */
+                // //add timeout so that firebase can prepare
+                //vTaskDelay(3000 / portTICK_PERIOD_MS);
 
                 break;
             }
@@ -835,7 +834,7 @@ void app_main(void)
                 // wait until the question status has changed
                 vTaskDelay(10000 / portTICK_PERIOD_MS);
 
-                http_status = http_get_request("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/student-question-status", "documentId", true);
+                http_status = http_get_request2("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/student-question-status", "documentId", true);
                 if (http_status == 200)
                 {
                     ESP_LOGI(TAG, "nvs_data.question_status: %s", nvs_data.question_status);

@@ -54,15 +54,10 @@ extern const uint8_t server_cert_pem_start[] asm("_binary_ca_cert_pem_start");
 
 static char *img_buf = NULL;
 static char *session_buf = NULL;
+static char *response_buffer = NULL;
 
 char local_response_buffer[MAX_HTTP_OUTPUT_BUFFER] = {0};
 
-typedef enum
-{
-    SESSION
-} queries_t;
-
-queries_t queries;
 
 esp_err_t _http_event_handler(esp_http_client_event_t *evt)
 {
@@ -206,6 +201,7 @@ size_t http_get_request(char *hostname, char *path, char *query, bool cookie)
         {
             ESP_LOGI(TAG, "local_response_buffer: %s", local_response_buffer);
 
+            /*
             // BUG FIX: local_reponse_buffer retains previous request data
             if (strstr(local_response_buffer, "unanswered"))
             {
@@ -248,6 +244,7 @@ size_t http_get_request(char *hostname, char *path, char *query, bool cookie)
             }
             memset(nvs_data.question_status, 0, nvs_data.question_status_len);
             strncpy(nvs_data.question_status, local_response_buffer, nvs_data.question_status_len);
+            */
         }
     }
     /*
@@ -383,6 +380,87 @@ size_t http_get_request(char *hostname, char *path, char *query, bool cookie)
     return http_status;
 }
 
+size_t http_get_request2(char *hostname, char *path, char *query, bool cookie)
+{
+    response_buffer = malloc(MAX_HTTP_OUTPUT_BUFFER);
+    memset(response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER);
+
+    esp_http_client_config_t config = {
+        .host = hostname,
+        .path = path,
+        .event_handler = _http_event_handler,
+        .user_data = response_buffer, // Pass address of local buffer to get response
+        .disable_auto_redirect = true,
+        .user_agent = "SmartGlassesOS/1.0.0",
+        .buffer_size_tx = 2048, // fix HTTP_HEADER: Buffer length is small to fit all the headers error. https://www.reddit.com/r/esp32/comments/krwajq/esp32_http_post_fails_when_using_a_long_header/
+        .buffer_size = 2048
+    };
+
+    // check if the GET request has a query
+    char query_[1024] = "";
+    if (cookie)
+    {
+        strncat(query_, nvs_data.session_cookie, nvs_data.session_cookie_len);
+        config.query = query_;
+    }
+
+    if (query != NULL)
+    {
+        if (strcmp(query, "documentId") == 0)
+        {
+            const char *documentId = "&documentId=";
+            //const char *documentId = "&documentId=ov8mx2F3UNAlYtV5JRon";
+            strcat(query_, documentId);
+            strncat(query_, nvs_data.documentId, nvs_data.documentId_len);
+        }
+
+        config.query = query_;
+    }
+
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+
+    esp_err_t err_ = esp_http_client_set_method(client, HTTP_METHOD_GET);
+    if (err_ != ESP_OK)
+    {
+        ESP_LOGE(TAG, "http_get_request() esp_http_client_set_method() err_ : %s", esp_err_to_name(err_));
+    }
+
+    // GET
+    esp_err_t err = esp_http_client_perform(client);
+    size_t length = esp_http_client_get_content_length(client);
+    size_t http_status = esp_http_client_get_status_code(client);
+
+    if (err == ESP_OK)
+    {
+        ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %d", http_status, length);
+
+        // if the http request was successful, add new session cookie to nvs
+        if (http_status == HttpStatus_Ok && strcmp(path, "/student-question-status") == 0)
+        {
+            ESP_LOGI(TAG, "response_buffer: %s", response_buffer);
+            memset(nvs_data.question_status, 0, 24);
+            strncpy(nvs_data.question_status, response_buffer, length);
+        }
+    }
+    else
+    {
+        ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
+
+        // TODO : handle E (22079) HTTP_CLIENT: HTTP GET request failed: ESP_ERR_HTTP_CONNECT
+        // failed due to timeout
+
+        http_status == HttpStatus_Forbidden ? http_status = HttpStatus_Forbidden : http_status == 600;
+    }
+
+    free(response_buffer);
+    response_buffer = NULL;
+
+    esp_http_client_cleanup(client);
+
+    return http_status;
+}
+
+
 size_t http_post_request(char *hostname, char *path, char *post_data, char *session_cookie)
 {
 
@@ -499,13 +577,6 @@ size_t http_post_request(char *hostname, char *path, char *post_data, char *sess
 
                 nvs_data.session_cookie_len = length;
                 strncpy(nvs_data.session_cookie, session_buf, length);
-
-                // printf("/session-smartglasses-login POST 200 nvs_data.session_cookie:\n");
-                // for (int i = 0; i < nvs_data.session_cookie_len; i++)
-                // {
-                //     printf("%c", nvs_data.session_cookie[i]);
-                // }
-                // printf("\n");
             }
 
             free(session_buf);
