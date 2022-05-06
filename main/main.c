@@ -42,6 +42,9 @@ nvs_data_t nvs_data;
 #include "esp_camera.h"
 camera_fb_t *pic;
 
+static const uint8_t db_poll_limit = 10;
+static uint8_t db_poll_attempts = 0;
+
 static const char *TAG = "main.c";
 
 esp_err_t get_new_session_cookie(void)
@@ -127,11 +130,13 @@ void app_main(void)
         ESP_LOGE(TAG, "read_nvs_session_cookie() err: %s", esp_err_to_name(err));
     }
 
-    // err = erase_nvs_key("jpg_exponent");
-    // if (err != ESP_OK)
-    // {
-    //     ESP_LOGE(TAG, "erase_nvs_key() err: %s", esp_err_to_name(err));
-    // }
+    /*
+    err = erase_nvs_key("jpg_exponent");
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "erase_nvs_key() err: %s", esp_err_to_name(err));
+    }
+    */
 
     err = read_nvs_int("jpg_exponent", &nvs_data.jpeg_quality_exponent);
     if (err != ESP_OK)
@@ -501,7 +506,7 @@ void app_main(void)
             {
                 ESP_LOGI(TAG, "TUTORFISH_SUBMIT_QUESTION");
 
-                play_submit_question_instructions();
+                // play_submit_question_instructions();
 
                 tutorfish_submit_question_init = true;
 
@@ -512,6 +517,8 @@ void app_main(void)
             }
             else
             {
+                // capture the picture
+
                 err = toggle_camera_pwdn(CAMERA_ON);
                 if (err != ESP_OK)
                 {
@@ -575,18 +582,26 @@ void app_main(void)
                     ESP_LOGE(TAG, "toggle_camera_pwdn() err: %s", esp_err_to_name(err));
                 }
 
+                // uint8_t write_val = 0;
+
                 if (pic_taken)
                 {
+
                     if (nvs_data.jpeg_quality_exponent > 0)
                     {
-                        const uint8_t write_val = nvs_data.jpeg_quality_exponent - 1;
+                        nvs_data.jpeg_quality_exponent -= 1;
+
+                        // write_val = nvs_data.jpeg_quality_exponent;
+                        ESP_LOGI(TAG, "pic_taken nvs_data.jpeg_quality_exponent: %d", nvs_data.jpeg_quality_exponent);
 
                         // decrease jpg_quality inside nvs
-                        err = write_nvs_int("jpg_exponent", write_val);
+                        err = write_nvs_int("jpg_exponent", nvs_data.jpeg_quality_exponent);
                         if (err != ESP_OK)
                         {
                             ESP_LOGE(TAG, "write_nvs_int(jpeg_quality_exponent) err: %s", esp_err_to_name(err));
                         }
+
+                        // TODO : deinit/init camera?
                     }
 
                     // write the state to nvs
@@ -629,10 +644,13 @@ void app_main(void)
 
                     if (nvs_data.jpeg_quality_exponent < 5)
                     {
-                        const uint8_t write_val = nvs_data.jpeg_quality_exponent + 1;
+                        nvs_data.jpeg_quality_exponent += 1;
+
+                        // write_val = nvs_data.jpeg_quality_exponent;
+                        ESP_LOGI(TAG, "!pic_taken nvs_data.jpeg_quality_exponent: %d", nvs_data.jpeg_quality_exponent);
 
                         // increase jpg_quality inside nvs
-                        err = write_nvs_int("jpg_exponent", write_val);
+                        err = write_nvs_int("jpg_exponent", nvs_data.jpeg_quality_exponent);
                         if (err != ESP_OK)
                         {
                             ESP_LOGE(TAG, "write_nvs_int(jpg_exponent) err: %s", esp_err_to_name(err));
@@ -650,8 +668,24 @@ void app_main(void)
                         ESP_LOGE(TAG, "write_nvs_int(attempt_pic) err: %s", esp_err_to_name(err));
                     }
 
-                    // restart esp so the camera can init with new jpeg settings
-                    esp_restart();
+                    // deinit the camera then reinit to let the new jpg_quality settings take effect
+                    err = esp_camera_deinit();
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "esp_camera_deinit() err: %s", esp_err_to_name(err));
+                    }
+
+                    err = init_camera();
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "init_camera() err: %s", esp_err_to_name(err));
+                    }
+
+                    // go to sleep and remain in the picture capture state
+                    if (setup_sleep() != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "TUTORFISH_SUBMIT_QUESTION_COMPLETE setup_sleep() err: %s", esp_err_to_name(err));
+                    }
                     break;
                 }
             }
@@ -670,8 +704,8 @@ void app_main(void)
         case TUTORFISH_VALIDATE_SESSION:
             // check if the session is valid
             ESP_LOGI(TAG, "Checking session validity...");
-            // size_t http_status = http_get_request("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/validate-session", "", nvs_data.session_cookie);
-            size_t http_status = http_get_request("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/validate-session", "session=", NULL);
+            //size_t http_status = http_get_request("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/student-question-status", "documentId", true);
+            size_t http_status = http_get_request("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/validate-session", NULL, true);
             // Ok: session cookie valid
             if (http_status == 200)
             {
@@ -681,6 +715,7 @@ void app_main(void)
             // Unauthorized/Bad Request: session cookie has expired/missing session_cookie "Cookie" header
             else if (http_status == 401 || http_status == 400)
             {
+                /*
                 ESP_LOGW(TAG, "TUTORFISH_VALIDATE_SESSION http_get_request() http_status: %d", http_status);
                 ESP_LOGI(TAG, "Getting new session cookie...");
 
@@ -695,6 +730,7 @@ void app_main(void)
 
                 // add timeout so that firebase can prepare
                 vTaskDelay(3000 / portTICK_PERIOD_MS);
+                */
 
                 break;
             }
@@ -714,8 +750,47 @@ void app_main(void)
                 break;
             }
             break;
-        case TUTORFISH_CAPTURE_PIC:
-        
+        case TUTORFISH_CAPTURE_PIC:; // ; fixes random err
+
+            // send pic buffer to server via http
+            const int ret_code = https_send_pic(true, pic);
+
+            if (ret_code == -1)
+            {
+                // http req missing cookie
+                state_machine = TUTORFISH_VALIDATE_SESSION;
+                break;
+            }
+            else if (ret_code != 200)
+            {
+                // playback error message
+                if (audio_buf.error_message_00_wav_audio_buf == NULL)
+                {
+                    err = malloc_error_message_00_wav();
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "malloc_error_message_00_wav() err: %s", esp_err_to_name(err));
+                    }
+
+                    if (err == ESP_OK)
+                    {
+                        err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, 0.2f, false);
+                        if (err != ESP_OK)
+                        {
+                            ESP_LOGE(TAG, "playback_audio_file(error_message_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                        }
+
+                        free_error_message_00_wav();
+                    }
+                }
+
+                ESP_LOGE(TAG, "https_send_pic() ret_code: %d", ret_code);
+
+                state_machine = TUTORFISH_SUBMIT_QUESTION_COMPLETE;
+                break;
+            }
+
+            /*
             if (!websocket_app_start(pic))
             {
                 // pic did not send to websocket
@@ -744,15 +819,78 @@ void app_main(void)
                 state_machine = TUTORFISH_SUBMIT_QUESTION_COMPLETE;
                 break;
             }
+            */
 
             state_machine = TUTORFISH_POLL_DB;
             break;
         case TUTORFISH_POLL_DB:
-            // handle next state depending on the status field
-            ESP_LOGI(TAG, "polling db status");
+
+            // TODO : the sum of poll limit * vTaskDelay time should be equal to the question expiration time
+            // TODO : exponentially decrease the vTaskDelay time  until its sum is equal to the expiration time + a bit of time to get expired status
+
+            printf("db_poll_attempts: %d\n", db_poll_attempts);
+
+            if (db_poll_attempts++ <= db_poll_limit)
+            {
+                // wait until the question status has changed
+                vTaskDelay(10000 / portTICK_PERIOD_MS);
+
+                http_status = http_get_request("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/student-question-status", "documentId", true);
+                if (http_status == 200)
+                {
+                    ESP_LOGI(TAG, "nvs_data.question_status: %s", nvs_data.question_status);
+
+                    if (strcmp(nvs_data.question_status, "answered") == 0)
+                    {
+                        db_poll_attempts = 0;
+                        state_machine = TUTORFISH_DOWNLOAD_TTS;
+                        break;
+                    }
+                    else if (strcmp(nvs_data.question_status, "issue") == 0)
+                    {
+                        db_poll_attempts = 0;
+                        state_machine = TUTORFISH_PIC_ISSUE;
+                        break;
+                    }
+                    else if (strcmp(nvs_data.question_status, "pending") == 0)
+                    {
+                        // playback "pending" audio
+                    }
+                    else if (strcmp(nvs_data.question_status, "unanswered") == 0)
+                    {
+                        // playback "unanswered" audio
+                    }
+                    else if (strcmp(nvs_data.question_status, "expired") == 0)
+                    {
+                        // playback "expired" audio
+                        db_poll_attempts = 0;
+                        state_machine = TUTORFISH_SUBMIT_QUESTION_COMPLETE;
+                        break;
+                    }
+                    else if (strcmp(nvs_data.question_status, "canceled") == 0)
+                    {
+                        // playback "canceled" audio
+                    }
+                }
+                else
+                {
+                    // http error
+                }
+            }
+            else
+            {
+                // db_poll_attempts has reach its limit
+                db_poll_attempts = 0;
+                state_machine = TUTORFISH_SUBMIT_QUESTION_COMPLETE;
+                break;
+            }
+
+            break;
+        case TUTORFISH_PIC_ISSUE:
+            ESP_LOGI(TAG, "there was an issue with your picture, please try again");
             vTaskDelay(2000 / portTICK_PERIOD_MS);
 
-            state_machine = TUTORFISH_DOWNLOAD_TTS;
+            state_machine = TUTORFISH_SUBMIT_QUESTION_COMPLETE;
             break;
         case TUTORFISH_DOWNLOAD_TTS:
             ESP_LOGI(TAG, "downloading the tts from the db link");
@@ -780,6 +918,13 @@ void app_main(void)
         case TUTORFISH_SUBMIT_QUESTION_COMPLETE:
             ESP_LOGI(TAG, "TUTORFISH_SUBMIT_QUESTION_COMPLETE cleaning up and setting up wake trigger");
             vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+            // free up documentId for new allocation in the future
+            if (nvs_data.documentId != NULL)
+            {
+                free(nvs_data.documentId);
+                nvs_data.documentId = NULL;
+            }
 
             ESP_LOGI(TAG, "going to sleep");
             vTaskDelay(1000 / portTICK_PERIOD_MS);

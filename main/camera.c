@@ -120,7 +120,7 @@ camera_config_t setup_camera_config(void)
         .ledc_channel = LEDC_CHANNEL_0,
 
         .pixel_format = PIXFORMAT_JPEG, // YUV422,GRAYSCALE,RGB565,JPEG,PIXFORMAT_RGB565
-        .frame_size = FRAMESIZE_UXGA,   // FRAMESIZE_FHD, //FRAMESIZE_QVGA,  //FRAMESIZE_UXGA,  //QQVGA-UXGA Do not use sizes above QVGA when not JPEG
+        .frame_size = FRAMESIZE_UXGA,   
         .jpeg_quality = jpg_quality,    // 0-63 lower number means higher quality
 
         .fb_count = 1, // if more than one, i2s runs in continuous mode. Use only with JPEG
@@ -130,70 +130,70 @@ camera_config_t setup_camera_config(void)
     return camera_config;
 }
 
-static camera_config_t camera_config = {
-    .pin_pwdn = CAM_PIN_PWDN,
-    .pin_reset = CAM_PIN_RESET,
-    .pin_xclk = CAM_PIN_XCLK,
-    .pin_sscb_sda = CAM_PIN_SIOD,
-    .pin_sscb_scl = CAM_PIN_SIOC,
+// static camera_config_t camera_config = {
+//     .pin_pwdn = CAM_PIN_PWDN,
+//     .pin_reset = CAM_PIN_RESET,
+//     .pin_xclk = CAM_PIN_XCLK,
+//     .pin_sscb_sda = CAM_PIN_SIOD,
+//     .pin_sscb_scl = CAM_PIN_SIOC,
 
-    .pin_d0 = Y2_GPIO_NUM,
-    .pin_d1 = Y3_GPIO_NUM,
-    .pin_d2 = Y4_GPIO_NUM,
-    .pin_d3 = Y5_GPIO_NUM,
-    .pin_d4 = Y6_GPIO_NUM,
-    .pin_d5 = Y7_GPIO_NUM,
-    .pin_d6 = Y8_GPIO_NUM,
-    .pin_d7 = Y9_GPIO_NUM,
+//     .pin_d0 = Y2_GPIO_NUM,
+//     .pin_d1 = Y3_GPIO_NUM,
+//     .pin_d2 = Y4_GPIO_NUM,
+//     .pin_d3 = Y5_GPIO_NUM,
+//     .pin_d4 = Y6_GPIO_NUM,
+//     .pin_d5 = Y7_GPIO_NUM,
+//     .pin_d6 = Y8_GPIO_NUM,
+//     .pin_d7 = Y9_GPIO_NUM,
 
-    .pin_vsync = CAM_PIN_VSYNC,
-    .pin_href = CAM_PIN_HREF,
-    .pin_pclk = CAM_PIN_PCLK,
+//     .pin_vsync = CAM_PIN_VSYNC,
+//     .pin_href = CAM_PIN_HREF,
+//     .pin_pclk = CAM_PIN_PCLK,
 
-    // XCLK 20MHz or 10MHz for OV2640 double FPS (Experimental)
-    .xclk_freq_hz = 20000000,
-    .ledc_timer = LEDC_TIMER_0,
-    .ledc_channel = LEDC_CHANNEL_0,
+//     // XCLK 20MHz or 10MHz for OV2640 double FPS (Experimental)
+//     .xclk_freq_hz = 20000000,
+//     .ledc_timer = LEDC_TIMER_0,
+//     .ledc_channel = LEDC_CHANNEL_0,
 
-    // NOTE : I (2045) cam_hal: Allocating 629145 Byte frame buffer in PSRAM
-    // TODO : try to allocate more RAM
+//     // NOTE : I (2045) cam_hal: Allocating 629145 Byte frame buffer in PSRAM
+//     // TODO : try to allocate more RAM
 
-    .pixel_format = PIXFORMAT_JPEG, // YUV422,GRAYSCALE,RGB565,JPEG,PIXFORMAT_RGB565
-    .frame_size = FRAMESIZE_UXGA,   // FRAMESIZE_FHD, //FRAMESIZE_QVGA,  //FRAMESIZE_UXGA,  //QQVGA-UXGA Do not use sizes above QVGA when not JPEG
-    .jpeg_quality = 24,             // 0-63 lower number means higher quality
+//     .pixel_format = PIXFORMAT_JPEG, // YUV422,GRAYSCALE,RGB565,JPEG,PIXFORMAT_RGB565
+//     .frame_size = FRAMESIZE_UXGA,   // FRAMESIZE_FHD, //FRAMESIZE_QVGA,  //FRAMESIZE_UXGA,  //QQVGA-UXGA Do not use sizes above QVGA when not JPEG
+//     .jpeg_quality = 24,             // 0-63 lower number means higher quality
 
-    // FRAMESIZE_XGA 8
-    // FRAMESIZE_VGA 8
+//     // FRAMESIZE_XGA 8
+//     // FRAMESIZE_VGA 8
 
-    // FRAMESIZE_HD 8
-    // FRAMESIZE_HD 4
-    // FRAMESIZE_HD 2 looks similar to < 2
+//     // FRAMESIZE_HD 8
+//     // FRAMESIZE_HD 4
+//     // FRAMESIZE_HD 2 looks similar to < 2
 
-    // FRAMESIZE_QXGA 16
-    // FRAMESIZE_QXGA 14 // works for screen pics
+//     // FRAMESIZE_QXGA 16
+//     // FRAMESIZE_QXGA 14 // works for screen pics
 
-    // FRAMESIZE_QXGA 10 // works for screen pics, wayyy better than 14
+//     // FRAMESIZE_QXGA 10 // works for screen pics, wayyy better than 14
 
-    // FRAMESIZE_UXGA 6 // works on screen, the image is sensor cropped (which is better)
-    // FRAMESIZE_UXGA 5 // works but difference is minute
+//     // FRAMESIZE_UXGA 6 // works on screen, the image is sensor cropped (which is better)
+//     // FRAMESIZE_UXGA 5 // works but difference is minute
 
-    // TODO : create function that decreases the jpeg_quality if the image does not capture (read/write from nvs)
-    // TODO : sepearate shutter from countdown, play shutter when the image has actually captured
+//     // TODO : create function that decreases the jpeg_quality if the image does not capture (read/write from nvs)
+//     // TODO : sepearate shutter from countdown, play shutter when the image has actually captured
 
-    // NOTE : time (t) increases by 1 after every failed camera capture until it reaches 5
-    //
-    // upon successful capture, decrease the (t) variable by 1
+//     // NOTE : time (t) increases by 1 after every failed camera capture until it reaches 5
+//     //
+//     // upon successful capture, decrease the (t) variable by 1
 
-    /*
-      // GRAYSCALE
-      .pixel_format = PIXFORMAT_GRAYSCALE, //YUV422,GRAYSCALE,RGB565,JPEG
-      .frame_size = FRAMESIZE_HD, //FRAMESIZE_WQXGA <- max_resolution FRAMESIZE_QHD FRAMESIZE_UXGA
-      .jpeg_quality = 12,
-      */
+//     /*
+//       // GRAYSCALE
+//       .pixel_format = PIXFORMAT_GRAYSCALE, //YUV422,GRAYSCALE,RGB565,JPEG
+//       .frame_size = FRAMESIZE_HD, //FRAMESIZE_WQXGA <- max_resolution FRAMESIZE_QHD FRAMESIZE_UXGA
+//       .jpeg_quality = 12,
+//       */
 
-    .fb_count = 1, // if more than one, i2s runs in continuous mode. Use only with JPEG
-    .grab_mode = CAMERA_GRAB_WHEN_EMPTY,
-};
+//     .fb_count = 1, // if more than one, i2s runs in continuous mode. Use only with JPEG
+//     .grab_mode = CAMERA_GRAB_WHEN_EMPTY,
+// };
 
 esp_err_t init_camera_pwdn(uint8_t level)
 {

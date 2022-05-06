@@ -147,7 +147,7 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt)
     return ESP_OK;
 }
 
-size_t http_get_request(char *hostname, char *path, char *query, char *session_cookie)
+size_t http_get_request(char *hostname, char *path, char *query, bool cookie)
 {
 
     // char *local_response_buffer = malloc(MAX_HTTP_OUTPUT_BUFFER);
@@ -164,20 +164,24 @@ size_t http_get_request(char *hostname, char *path, char *query, char *session_c
     };
 
     // check if the GET request has a query
+    char query_[1024] = "";
+    if (cookie)
+    {
+        strncat(query_, nvs_data.session_cookie, nvs_data.session_cookie_len);
+        config.query = query_;
+    }
+
     if (query != NULL)
     {
-        // TODO : actually implement the switch ENUM functionality
-        switch (queries)
+        if (strcmp(query, "documentId") == 0)
         {
-        case SESSION:
-            if (nvs_data.session_cookie != NULL)
-            {
-                config.query = nvs_data.session_cookie;
-            }
-            break;
-        default:
-            break;
+            const char *documentId = "&documentId=";
+            // const char *documentId = "&documentId=ov8mx2F3UNAlYtV5JRon";
+            strcat(query_, documentId);
+            strncat(query_, nvs_data.documentId, nvs_data.documentId_len);
         }
+
+        config.query = query_;
     }
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
@@ -186,18 +190,6 @@ size_t http_get_request(char *hostname, char *path, char *query, char *session_c
     if (err_ != ESP_OK)
     {
         ESP_LOGE(TAG, "http_get_request() esp_http_client_set_method() err_ : %s", esp_err_to_name(err_));
-    }
-
-    // add cookie to http request
-    if (session_cookie != NULL)
-    {
-        err_ = esp_http_client_set_header(client, "Cookie", session_cookie);
-        if (err_ != ESP_OK)
-        {
-            ESP_LOGE(TAG, "http_get_request() esp_http_client_set_header(session_cookie) err_ : %s", esp_err_to_name(err_));
-        }
-
-        vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 
     // GET
@@ -209,13 +201,170 @@ size_t http_get_request(char *hostname, char *path, char *query, char *session_c
     {
         ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %d", http_status, length);
 
-        // printf("GET local_response_buffer:\n");
-        // for (int i = 0; i < length; i++)
-        // {
-        //     printf("%c", local_response_buffer[i]);
-        // }
-        // printf("\n");
+        // if the http request was successful, add new session cookie to nvs
+        if (http_status == HttpStatus_Ok && strcmp(path, "/student-question-status") == 0)
+        {
+            ESP_LOGI(TAG, "local_response_buffer: %s", local_response_buffer);
+
+            // BUG FIX: local_reponse_buffer retains previous request data
+            if (strstr(local_response_buffer, "unanswered"))
+            {
+                length = strlen("unanswered");
+            }
+            else if (strstr(local_response_buffer, "pending"))
+            {
+                length = strlen("pending");
+            }
+            else if (strstr(local_response_buffer, "answered"))
+            {
+                length = strlen("answered");
+            }
+            else if (strstr(local_response_buffer, "issue"))
+            {
+                length = strlen("issue");
+            }
+            else if (strstr(local_response_buffer, "expired"))
+            {
+                length = strlen("expired");
+            }
+            else if (strstr(local_response_buffer, "canceled"))
+            {
+                length = strlen("canceled");
+            }
+
+            printf("length: %d\n", length);
+
+            nvs_data.question_status_len = length;
+            if (nvs_data.question_status == NULL)
+            {
+                nvs_data.question_status = malloc(nvs_data.question_status_len);
+            }
+            else
+            {
+                free(nvs_data.question_status);
+                nvs_data.question_status = NULL;
+                nvs_data.question_status = malloc(nvs_data.question_status_len);
+                
+            }
+            memset(nvs_data.question_status, 0, nvs_data.question_status_len);
+            strncpy(nvs_data.question_status, local_response_buffer, nvs_data.question_status_len);
+        }
     }
+    /*
+    if (err == ESP_OK)
+    {
+        ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %d", http_status, length);
+
+        // if the http request was successful, add new session cookie to nvs
+        if (http_status == HttpStatus_Ok && strcmp(path, "/student-question-status") == 0)
+        {
+            ESP_LOGI(TAG, "local_response_buffer: %s", local_response_buffer);
+
+            // BUG FIX: local_reponse_buffer retains previous request data
+            if (strstr(local_response_buffer, "unanswered"))
+            {
+                const uint8_t unanswered_len = strlen("unanswered");
+                uint8_t ii = 0;
+                session_buf = malloc(length);
+                memset(session_buf, 0, length);
+                for (uint8_t i = 0; i < length + unanswered_len; i++)
+                {
+                    if (i >= unanswered_len)
+                    {
+                        nvs_data.question_status[ii++] = local_response_buffer[i];
+                    }
+                }
+            }
+            else if (strstr(local_response_buffer, "pending"))
+            {
+                const uint8_t pending_len = strlen("pending");
+                uint8_t ii = 0;
+                session_buf = malloc(length);
+                memset(session_buf, 0, length);
+                for (uint8_t i = 0; i < length + pending_len; i++)
+                {
+                    if (i >= pending_len)
+                    {
+                        nvs_data.question_status[ii++] = local_response_buffer[i];
+                    }
+                }
+            }
+            else if (strstr(local_response_buffer, "answered"))
+            {
+                const uint8_t answered_len = strlen("answered");
+                uint8_t ii = 0;
+                session_buf = malloc(length);
+                memset(session_buf, 0, length);
+                for (uint8_t i = 0; i < length + answered_len; i++)
+                {
+                    if (i >= answered_len)
+                    {
+                        nvs_data.question_status[ii++] = local_response_buffer[i];
+                    }
+                }
+            }
+            else if (strstr(local_response_buffer, "issue"))
+            {
+                const uint8_t issue_len = strlen("issue");
+                uint8_t ii = 0;
+                session_buf = malloc(length);
+                memset(session_buf, 0, length);
+                for (uint8_t i = 0; i < length + issue_len; i++)
+                {
+                    if (i >= issue_len)
+                    {
+                        nvs_data.question_status[ii++] = local_response_buffer[i];
+                    }
+                }
+            }
+            else if (strstr(local_response_buffer, "expired"))
+            {
+                const uint8_t expired_len = strlen("expired");
+                uint8_t ii = 0;
+                session_buf = malloc(length);
+                memset(session_buf, 0, length);
+                for (uint8_t i = 0; i < length + expired_len; i++)
+                {
+                    if (i >= expired_len)
+                    {
+                        nvs_data.question_status[ii++] = local_response_buffer[i];
+                    }
+                }
+            }
+            else if (strstr(local_response_buffer, "canceled"))
+            {
+                const uint8_t canceled_len = strlen("canceled");
+                uint8_t ii = 0;
+                session_buf = malloc(length);
+                memset(session_buf, 0, length);
+                for (uint8_t i = 0; i < length + canceled_len; i++)
+                {
+                    if (i >= canceled_len)
+                    {
+                        nvs_data.question_status[ii++] = local_response_buffer[i];
+                    }
+                }
+            }
+
+            // make sure the session_buf has data
+            if (session_buf != NULL)
+            {
+                nvs_data.question_status_len = length;
+                if (nvs_data.question_status == NULL)
+                {
+                    nvs_data.question_status = malloc(nvs_data.question_status_len);
+                }
+                else
+                {
+                    free(nvs_data.question_status);
+                    nvs_data.question_status = NULL;
+                    nvs_data.question_status = malloc(nvs_data.question_status_len);
+                }
+                memcpy(nvs_data.question_status, session_buf, length);
+            }
+        }
+    }
+    */
     else
     {
         ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
@@ -226,8 +375,8 @@ size_t http_get_request(char *hostname, char *path, char *query, char *session_c
         http_status == HttpStatus_Forbidden ? http_status = HttpStatus_Forbidden : http_status == 600;
     }
 
-    // free(get_local_response_buffer);
-    // get_local_response_buffer = NULL;
+    free(session_buf);
+    session_buf = NULL;
 
     esp_http_client_cleanup(client);
 
@@ -302,7 +451,9 @@ size_t http_post_request(char *hostname, char *path, char *post_data, char *sess
                         session_buf[ii++] = local_response_buffer[i];
                     }
                 }
-            } else {
+            }
+            else
+            {
                 session_buf = malloc(length);
                 memset(session_buf, 0, length);
                 strcpy(session_buf, local_response_buffer);
@@ -391,53 +542,13 @@ size_t http_post_request(char *hostname, char *path, char *post_data, char *sess
     return http_status;
 }
 
-static bool sendImage(esp_http_client_handle_t client)
+static int sendImage(esp_http_client_handle_t client, camera_fb_t *pic)
 {
-    esp_err_t err;
-
-    err = toggle_camera_pwdn(0);
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "toggle_camera_pwdn() err: %s", esp_err_to_name(err));
-    }
-
-    // give camera time to warm up
-    vTaskDelay(500 / portTICK_PERIOD_MS);
-
-    ESP_LOGI(TAG, "Taking picture...");
-    camera_fb_t *pic = esp_camera_fb_get();
-
-    // capture a few images to warm up the sensor
-    uint8_t capture_count = 0;
-    while (1)
-    {
-        esp_camera_fb_return(pic);
-        pic = esp_camera_fb_get();
-
-        printf("capture_count: %d\n", capture_count);
-        if (capture_count++ == 4)
-        {
-            break;
-        }
-    }
-
-    // char *img_buf = malloc(pic->len * sizeof(char));
     img_buf = malloc(pic->len * sizeof(char));
     int img_len = pic->len;
     memcpy(img_buf, pic->buf, pic->len);
 
     esp_camera_fb_return(pic);
-
-    err = toggle_camera_pwdn(1);
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "toggle_camera_pwdn() err: %s", esp_err_to_name(err));
-    }
-
-    // use pic->buf to access the image
-    ESP_LOGI(TAG, "Picture taken! Its size was: %zu bytes", img_len);
-
-    //=============================================================================================
 
     time_t fileTransferStart = 0;
     time(&fileTransferStart);
@@ -448,7 +559,8 @@ static bool sendImage(esp_http_client_handle_t client)
     strcat(requestHead, HTTP_BOUNDARY);
     strcat(requestHead, "\r\n");
     strcat(requestHead, "Content-Disposition: form-data; name=\"imageFile\"; filename=\"esp32-cam.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n");
-    ESP_LOGI(TAG, "requestHead: %s", requestHead);
+
+    // TODO : add expiry to HTTP req
 
     // request tail
     char tail[50] = "";
@@ -463,7 +575,7 @@ static bool sendImage(esp_http_client_handle_t client)
     char lengthStr[10];
     sprintf(lengthStr, "%i", contentLength);
 
-    err = esp_http_client_set_header(client, "Content-Length", lengthStr);
+    esp_err_t err = esp_http_client_set_header(client, "Content-Length", lengthStr);
 
     //=============================================================================================
 
@@ -475,10 +587,10 @@ static bool sendImage(esp_http_client_handle_t client)
     }
 
     ESP_LOGI(TAG, "client connection open");
-
     ESP_LOGI(TAG, "requestHead:\t%d", esp_http_client_write(client, requestHead, strlen(requestHead)));
+
     // Send file parts
-    char buffer[HTTP_BUFFER_SIZE];
+    // char buffer[HTTP_BUFFER_SIZE];
     unsigned fileProgress = 0;
     while (fileProgress < img_len)
     {
@@ -515,7 +627,7 @@ static bool sendImage(esp_http_client_handle_t client)
     // finish Multipart request
     ESP_LOGI(TAG, "tail:\t%d", esp_http_client_write(client, tail, strlen(tail)));
 
-    // esp_camera_fb_return(pic);
+    // return pic img_buf
     free(img_buf);
     img_buf = NULL;
 
@@ -531,8 +643,22 @@ static bool sendImage(esp_http_client_handle_t client)
 
     if (responseLength)
     {
-        if (esp_http_client_read(client, buffer, responseLength) == responseLength)
-            ESP_LOGI(TAG, "Response: %.*s", responseLength, buffer);
+        // malloc documentId if the server uploaded ok
+        if (status == 200)
+        {
+            nvs_data.documentId_len = responseLength;
+
+            if (nvs_data.documentId == NULL)
+            {
+                nvs_data.documentId = malloc(responseLength);
+                memset(nvs_data.documentId, 0, nvs_data.documentId_len);
+            }
+
+            if (esp_http_client_read(client, nvs_data.documentId, responseLength) == responseLength)
+            {
+                ESP_LOGI(TAG, "Response: %.*s", nvs_data.documentId_len, nvs_data.documentId);
+            }
+        }
     }
 
     err = esp_http_client_close(client);
@@ -542,12 +668,12 @@ static bool sendImage(esp_http_client_handle_t client)
         esp_http_client_cleanup(client);
     }
 
-    return status == 200 || status == 409;
+    return status;
 }
 
-void https_send_file(uint8_t *buf, size_t buf_len)
+int https_send_pic(bool cookie, camera_fb_t *pic)
 {
-    char url[200] = "http://nosystems-env.eba-mpgixwp9.us-east-1.elasticbeanstalk.com/camera";
+    char url[200] = "http://tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com/upload-image";
 
     ESP_LOGI(TAG, "url = %s", url);
     esp_err_t err;
@@ -556,7 +682,7 @@ void https_send_file(uint8_t *buf, size_t buf_len)
         .event_handler = _http_event_handler,
         .user_agent = "SmartGlassesOS/1.0.0",
         .cert_pem = howsmyssl_com_root_cert_pem_start,
-    };
+        .buffer_size_tx = 2048};
     esp_http_client_handle_t client = esp_http_client_init(&config);
     ESP_LOGI(TAG, "client initialized");
 
@@ -575,12 +701,26 @@ void https_send_file(uint8_t *buf, size_t buf_len)
     err = esp_http_client_set_header(client, "Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
     err = esp_http_client_set_header(client, "Accept-Encoding", "gzip,deflate");
     err = esp_http_client_set_header(client, "Accept-Charset", "ISO-8859-1,utf-8;q=0.7,*;q=0.7");
-    err = esp_http_client_set_header(client, "User-Agent", "Test");
+    err = esp_http_client_set_header(client, "User-Agent", "SmartGlassesOS/1.0.0");
     err = esp_http_client_set_header(client, "Keep-Alive", "300");
     err = esp_http_client_set_header(client, "Connection", "keep-alive");
     err = esp_http_client_set_header(client, "Accept-Language", "en-us");
 
-    sendImage(client);
+    if (cookie)
+    {
+        if (nvs_data.session_cookie != NULL)
+        {
+            err = esp_http_client_set_header(client, "Cookie", nvs_data.session_cookie);
+            ESP_LOGI(TAG, "adding session_cookie to client header");
+        }
+        else
+        {
+            // no cookie!
+            return -1;
+        }
+    }
+
+    int ret_status = sendImage(client, pic);
 
     err = esp_http_client_cleanup(client);
     if (err != ESP_OK)
@@ -589,5 +729,5 @@ void https_send_file(uint8_t *buf, size_t buf_len)
         esp_http_client_cleanup(client);
     }
 
-    // vTaskDelete(NULL);
+    return ret_status;
 }
