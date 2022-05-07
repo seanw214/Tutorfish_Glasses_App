@@ -21,10 +21,10 @@
 #include "esp_http_client.h"
 
 #include "driver/i2s.h"
-//#include "glasses_state_machine.h"
 #include "esp_camera.h"
 #include "esp_ota.h"
 #include "nvs_data_struct.h"
+#include "audio_io.h"
 
 #include "camera.h" // <- remove after test camera PWDN toggle before/after using camera
 
@@ -57,7 +57,6 @@ static char *session_buf = NULL;
 static char *response_buffer = NULL;
 
 char local_response_buffer[MAX_HTTP_OUTPUT_BUFFER] = {0};
-
 
 esp_err_t _http_event_handler(esp_http_client_event_t *evt)
 {
@@ -142,6 +141,144 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt)
     return ESP_OK;
 }
 
+int http_download_file(char *hostname, char *path, char *query, bool cookie)
+{
+    esp_http_client_config_t config = {
+            .host = hostname,
+            .path = path,
+            .event_handler = _http_event_handler,
+            .disable_auto_redirect = true,
+            .user_agent = "SmartGlassesOS/1.0.0",
+            .buffer_size_tx = 2048 // fix HTTP_HEADER: Buffer length is small to fit all the headers error. https://www.reddit.com/r/esp32/comments/krwajq/esp32_http_post_fails_when_using_a_long_header/
+        };
+
+    // check if the GET request has a query
+    char query_[1024] = "";
+    if (cookie)
+    {
+        strncat(query_, nvs_data.session_cookie, nvs_data.session_cookie_len);
+        config.query = query_;
+    }
+
+    if (query != NULL)
+    {
+        if (cookie)
+        {
+            const char *amperstand = "&";
+            strcat(query_, amperstand);
+        }
+
+        if (strcmp(query, "ttsKey") == 0)
+        {
+            const char *ttsKey = "ttsKey=";
+            strcat(query_, ttsKey);
+            strcat(query_, nvs_data.question_ttsKey);
+        }
+        config.query = query_;
+    }
+
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+
+    // GET Request
+    esp_err_t err = esp_http_client_set_method(client, HTTP_METHOD_GET);
+
+    err = esp_http_client_open(client, 0);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to open HTTP connection: %s", esp_err_to_name(err));
+
+        err = esp_http_client_cleanup(client);
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "esp_http_client_cleanup() err: %s", esp_err_to_name(err));
+            return err;
+        }
+
+        return ESP_FAIL;
+    }
+
+    // GET
+    err = esp_http_client_perform(client);
+    if (err != ESP_OK)
+    {
+        err = esp_http_client_cleanup(client);
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "esp_http_client_cleanup() err: %s", esp_err_to_name(err));
+            return err;
+        }
+
+        return ESP_FAIL;
+    }
+
+    int content_length = esp_http_client_get_content_length(client);
+    ESP_LOGI(TAG, "esp_http_client_get_content_length(): %d", content_length);
+
+    if (content_length < 0)
+    {
+        ESP_LOGE(TAG, "esp_http_client_get_content_length is 0");
+    }
+    else
+    {
+        // check the path of the request and handle accordingly
+        if (strcmp(path, "/student-download-tts") == 0)
+        {
+            // allocate audio buffer
+            // NOTE : added 10000 additional bytes to prevent early playback stop
+            audio_buf.tts_audio_len = content_length;
+            if (audio_buf.tts_audio_buf == NULL)
+            {
+                audio_buf.tts_audio_buf = malloc(audio_buf.tts_audio_len);
+            }
+            else
+            {
+                free(audio_buf.tts_audio_buf);
+                audio_buf.tts_audio_buf = NULL;
+                audio_buf.tts_audio_buf = malloc(audio_buf.tts_audio_len);
+            }
+
+            int data_read = esp_http_client_read_response(client, audio_buf.tts_audio_buf, MAX_HTTP_OUTPUT_BUFFER);
+            if (data_read < 0)
+            {
+                ESP_LOGE(TAG, "Failed to read response");
+                free(audio_buf.tts_audio_buf);
+                audio_buf.tts_audio_buf = NULL;
+            }
+            /*
+            if (data_read >= 0)
+            {
+                //ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %d", esp_http_client_get_status_code(client), esp_http_client_get_content_length(client));
+                //ESP_LOG_BUFFER_HEX(TAG, audio_buf.tts_audio_buf, 8);
+            }
+            else
+            {
+                ESP_LOGE(TAG, "Failed to read response");
+                free(audio_buf.tts_audio_buf);
+                audio_buf.tts_audio_buf = NULL;
+            }
+            */
+        }
+    }
+
+    int http_status = esp_http_client_get_status_code(client);
+
+    err = esp_http_client_close(client);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "esp_http_client_close() err: %s", esp_err_to_name(err));
+    }
+
+    err = esp_http_client_cleanup(client);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "esp_http_client_cleanup() err: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    return err == ESP_OK && http_status == 200 ? err = ESP_OK : http_status;
+}
+
+/*
 size_t http_get_request(char *hostname, char *path, char *query, bool cookie)
 {
 
@@ -201,7 +338,6 @@ size_t http_get_request(char *hostname, char *path, char *query, bool cookie)
         {
             ESP_LOGI(TAG, "local_response_buffer: %s", local_response_buffer);
 
-            /*
             // BUG FIX: local_reponse_buffer retains previous request data
             if (strstr(local_response_buffer, "unanswered"))
             {
@@ -240,128 +376,12 @@ size_t http_get_request(char *hostname, char *path, char *query, bool cookie)
                 free(nvs_data.question_status);
                 nvs_data.question_status = NULL;
                 nvs_data.question_status = malloc(nvs_data.question_status_len);
-                
+
             }
             memset(nvs_data.question_status, 0, nvs_data.question_status_len);
             strncpy(nvs_data.question_status, local_response_buffer, nvs_data.question_status_len);
-            */
         }
     }
-    /*
-    if (err == ESP_OK)
-    {
-        ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %d", http_status, length);
-
-        // if the http request was successful, add new session cookie to nvs
-        if (http_status == HttpStatus_Ok && strcmp(path, "/student-question-status") == 0)
-        {
-            ESP_LOGI(TAG, "local_response_buffer: %s", local_response_buffer);
-
-            // BUG FIX: local_reponse_buffer retains previous request data
-            if (strstr(local_response_buffer, "unanswered"))
-            {
-                const uint8_t unanswered_len = strlen("unanswered");
-                uint8_t ii = 0;
-                session_buf = malloc(length);
-                memset(session_buf, 0, length);
-                for (uint8_t i = 0; i < length + unanswered_len; i++)
-                {
-                    if (i >= unanswered_len)
-                    {
-                        nvs_data.question_status[ii++] = local_response_buffer[i];
-                    }
-                }
-            }
-            else if (strstr(local_response_buffer, "pending"))
-            {
-                const uint8_t pending_len = strlen("pending");
-                uint8_t ii = 0;
-                session_buf = malloc(length);
-                memset(session_buf, 0, length);
-                for (uint8_t i = 0; i < length + pending_len; i++)
-                {
-                    if (i >= pending_len)
-                    {
-                        nvs_data.question_status[ii++] = local_response_buffer[i];
-                    }
-                }
-            }
-            else if (strstr(local_response_buffer, "answered"))
-            {
-                const uint8_t answered_len = strlen("answered");
-                uint8_t ii = 0;
-                session_buf = malloc(length);
-                memset(session_buf, 0, length);
-                for (uint8_t i = 0; i < length + answered_len; i++)
-                {
-                    if (i >= answered_len)
-                    {
-                        nvs_data.question_status[ii++] = local_response_buffer[i];
-                    }
-                }
-            }
-            else if (strstr(local_response_buffer, "issue"))
-            {
-                const uint8_t issue_len = strlen("issue");
-                uint8_t ii = 0;
-                session_buf = malloc(length);
-                memset(session_buf, 0, length);
-                for (uint8_t i = 0; i < length + issue_len; i++)
-                {
-                    if (i >= issue_len)
-                    {
-                        nvs_data.question_status[ii++] = local_response_buffer[i];
-                    }
-                }
-            }
-            else if (strstr(local_response_buffer, "expired"))
-            {
-                const uint8_t expired_len = strlen("expired");
-                uint8_t ii = 0;
-                session_buf = malloc(length);
-                memset(session_buf, 0, length);
-                for (uint8_t i = 0; i < length + expired_len; i++)
-                {
-                    if (i >= expired_len)
-                    {
-                        nvs_data.question_status[ii++] = local_response_buffer[i];
-                    }
-                }
-            }
-            else if (strstr(local_response_buffer, "canceled"))
-            {
-                const uint8_t canceled_len = strlen("canceled");
-                uint8_t ii = 0;
-                session_buf = malloc(length);
-                memset(session_buf, 0, length);
-                for (uint8_t i = 0; i < length + canceled_len; i++)
-                {
-                    if (i >= canceled_len)
-                    {
-                        nvs_data.question_status[ii++] = local_response_buffer[i];
-                    }
-                }
-            }
-
-            // make sure the session_buf has data
-            if (session_buf != NULL)
-            {
-                nvs_data.question_status_len = length;
-                if (nvs_data.question_status == NULL)
-                {
-                    nvs_data.question_status = malloc(nvs_data.question_status_len);
-                }
-                else
-                {
-                    free(nvs_data.question_status);
-                    nvs_data.question_status = NULL;
-                    nvs_data.question_status = malloc(nvs_data.question_status_len);
-                }
-                memcpy(nvs_data.question_status, session_buf, length);
-            }
-        }
-    }
-    */
     else
     {
         ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
@@ -379,8 +399,9 @@ size_t http_get_request(char *hostname, char *path, char *query, bool cookie)
 
     return http_status;
 }
+*/
 
-size_t http_get_request2(char *hostname, char *path, char *query, bool cookie)
+size_t http_get_request(char *hostname, char *path, char *query, bool cookie)
 {
     response_buffer = malloc(MAX_HTTP_OUTPUT_BUFFER);
     memset(response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER);
@@ -393,8 +414,7 @@ size_t http_get_request2(char *hostname, char *path, char *query, bool cookie)
         .disable_auto_redirect = true,
         .user_agent = "SmartGlassesOS/1.0.0",
         .buffer_size_tx = 2048, // fix HTTP_HEADER: Buffer length is small to fit all the headers error. https://www.reddit.com/r/esp32/comments/krwajq/esp32_http_post_fails_when_using_a_long_header/
-        .buffer_size = 2048
-    };
+        .buffer_size = 2048};
 
     // check if the GET request has a query
     char query_[1024] = "";
@@ -406,12 +426,18 @@ size_t http_get_request2(char *hostname, char *path, char *query, bool cookie)
 
     if (query != NULL)
     {
+        if (cookie)
+        {
+            const char *amperstand = "&";
+            strcat(query_, amperstand);
+        }
+
         if (strcmp(query, "documentId") == 0)
         {
-            const char *documentId = "&documentId=";
-            //const char *documentId = "&documentId=ov8mx2F3UNAlYtV5JRon";
+            //const char *documentId = "documentId=";
+            const char *documentId = "documentId=w2EKdfqufgjNO0IU8SZS"; // NOTE: remove when NOT testing
             strcat(query_, documentId);
-            strncat(query_, nvs_data.documentId, nvs_data.documentId_len);
+            //strncat(query_, nvs_data.documentId, nvs_data.documentId_len);
         }
 
         config.query = query_;
@@ -434,11 +460,11 @@ size_t http_get_request2(char *hostname, char *path, char *query, bool cookie)
     {
         ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %d", http_status, length);
 
-        // if the http request was successful, add new session cookie to nvs
+        // check the path of the request and handle accordingly
         if (http_status == HttpStatus_Ok && strcmp(path, "/student-question-status") == 0)
         {
             ESP_LOGI(TAG, "response_buffer: %s", response_buffer);
-            memset(nvs_data.question_status, 0, 24);
+            memset(nvs_data.question_status, 0, 255);
             strncpy(nvs_data.question_status, response_buffer, length);
         }
     }
@@ -459,7 +485,6 @@ size_t http_get_request2(char *hostname, char *path, char *query, bool cookie)
 
     return http_status;
 }
-
 
 size_t http_post_request(char *hostname, char *path, char *post_data, char *session_cookie)
 {

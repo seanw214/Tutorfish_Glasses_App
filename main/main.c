@@ -45,6 +45,14 @@ camera_fb_t *pic;
 static const uint8_t db_poll_limit = 10;
 static uint8_t db_poll_attempts = 0;
 
+static const uint8_t tts_download_limit = 2;
+static uint8_t tts_download_attempts = 0;
+
+static const uint8_t validate_session_cookie_get_limit = 4;
+static uint8_t validate_session_cookie_get_attempts = 0;
+
+size_t http_status = 0;
+
 static const char *TAG = "main.c";
 
 esp_err_t get_new_session_cookie(void)
@@ -299,8 +307,8 @@ void app_main(void)
     }
     */
 
-    state_machine = TUTORFISH_HOME;
-    //state_machine = CONNECT_TO_WIFI;
+    // state_machine = TUTORFISH_HOME;
+    state_machine = CONNECT_TO_WIFI;
 
     while (true)
     {
@@ -382,14 +390,13 @@ void app_main(void)
                 wifi_bt_status.wifi_init = true;
                 wifi_bt_status.wifi_conn = true;
 
-                state_machine = TUTORFISH_VALIDATE_SESSION;
-                //state_machine = TUTORFISH_POLL_DB;
+                // state_machine = TUTORFISH_VALIDATE_SESSION;
+                state_machine = TUTORFISH_POLL_DB;
                 break;
             }
+            // wifi connection retry timed-out
             else
             {
-                // wifi connection retry timed-out
-
                 if (blue_led_task_init)
                 {
                     delete_blue_led_task();
@@ -517,10 +524,9 @@ void app_main(void)
                     ESP_LOGE(TAG, "TUTORFISH_SUBMIT_QUESTION setup_sleep() err: %s", esp_err_to_name(err));
                 }
             }
+            // capture the picture
             else
             {
-                // capture the picture
-
                 err = toggle_camera_pwdn(CAMERA_ON);
                 if (err != ESP_OK)
                 {
@@ -584,16 +590,12 @@ void app_main(void)
                     ESP_LOGE(TAG, "toggle_camera_pwdn() err: %s", esp_err_to_name(err));
                 }
 
-                // uint8_t write_val = 0;
-
                 if (pic_taken)
                 {
 
                     if (nvs_data.jpeg_quality_exponent > 0)
                     {
                         nvs_data.jpeg_quality_exponent -= 1;
-
-                        // write_val = nvs_data.jpeg_quality_exponent;
                         ESP_LOGI(TAG, "pic_taken nvs_data.jpeg_quality_exponent: %d", nvs_data.jpeg_quality_exponent);
 
                         // decrease jpg_quality inside nvs
@@ -647,8 +649,6 @@ void app_main(void)
                     if (nvs_data.jpeg_quality_exponent < 5)
                     {
                         nvs_data.jpeg_quality_exponent += 1;
-
-                        // write_val = nvs_data.jpeg_quality_exponent;
                         ESP_LOGI(TAG, "!pic_taken nvs_data.jpeg_quality_exponent: %d", nvs_data.jpeg_quality_exponent);
 
                         // increase jpg_quality inside nvs
@@ -705,48 +705,55 @@ void app_main(void)
             break;
         case TUTORFISH_VALIDATE_SESSION:
             // check if the session is valid
-            ESP_LOGI(TAG, "Checking session validity...");
-            size_t http_status = http_get_request2("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/validate-session", NULL, true);
-            // Ok: session cookie valid
-            if (http_status == 200)
+            if (validate_session_cookie_get_attempts++ <= validate_session_cookie_get_limit)
             {
-                state_machine = TUTORFISH_CAPTURE_PIC;
-                break;
-            }
-            // Unauthorized/Bad Request: session cookie has expired/missing session_cookie "Cookie" header
-            else if (http_status == 401 || http_status == 400)
-            {
-                ESP_LOGW(TAG, "TUTORFISH_VALIDATE_SESSION http_get_request() http_status: %d", http_status);
-                ESP_LOGI(TAG, "Getting new session cookie...");
-
-                err = get_new_session_cookie();
-                if (err != ESP_OK)
+                ESP_LOGI(TAG, "Checking session validity...");
+                http_status = http_get_request("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/validate-session", NULL, true);
+                // Ok: session cookie valid
+                if (http_status == 200)
                 {
-                    ESP_LOGE(TAG, "TUTORFISH_VALIDATE_SESSION get_new_session_cookie() err: %s", esp_err_to_name(err));
+                    validate_session_cookie_get_attempts = 0;
+                    state_machine = TUTORFISH_CAPTURE_PIC;
                     break;
                 }
+                // Unauthorized/Bad Request: session cookie has expired/missing session_cookie "Cookie" header
+                else if (http_status == 401 || http_status == 400)
+                {
+                    ESP_LOGW(TAG, "TUTORFISH_VALIDATE_SESSION http_get_request() http_status: %d", http_status);
+                    ESP_LOGI(TAG, "Getting new session cookie...");
 
-                print_nvs_credentials();
+                    err = get_new_session_cookie();
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "TUTORFISH_VALIDATE_SESSION get_new_session_cookie() err: %s", esp_err_to_name(err));
+                        break;
+                    }
 
-                // //add timeout so that firebase can prepare
-                //vTaskDelay(3000 / portTICK_PERIOD_MS);
+                    print_nvs_credentials();
 
-                break;
-            }
-            // Forbidden: useragent was not SmartGlassesOS
-            else if (http_status == 403)
-            {
-                // notify the user to return to Smart Glasses Home
-                ESP_LOGE(TAG, "TUTORFISH_VALIDATE_SESSION http_get_request() http_status: %d", http_status);
-                state_machine = TUTORFISH_HOME;
-                break;
+                    break;
+                }
+                // Forbidden: useragent was not SmartGlassesOS
+                else if (http_status == 403)
+                {
+                    // notify the user to return to Smart Glasses Home
+                    ESP_LOGE(TAG, "TUTORFISH_VALIDATE_SESSION http_get_request() http_status: %d", http_status);
+                    validate_session_cookie_get_attempts = 0;
+                    state_machine = TUTORFISH_HOME;
+                    break;
+                }
+                else
+                {
+                    ESP_LOGE(TAG, "TUTORFISH_VALIDATE_SESSION http_get_request() http_status: %d", http_status);
+                    // TODO : sometimes http_get_request returns with  ESP_ERR_HTTP_FETCH_HEADER -> E (26495) main.c: TUTORFISH_VALIDATE_SESSION http_get_request() http_status: -1
+                    // try to validate again...
+                    break;
+                }
             }
             else
             {
-                ESP_LOGE(TAG, "TUTORFISH_VALIDATE_SESSION http_get_request() http_status: %d", http_status);
-                // TODO : sometimes http_get_request returns with  ESP_ERR_HTTP_FETCH_HEADER -> E (26495) main.c: TUTORFISH_VALIDATE_SESSION http_get_request() http_status: -1
-                // try to validate again...
-                break;
+                validate_session_cookie_get_attempts = 0;
+                state_machine = TUTORFISH_HOME;
             }
             break;
         case TUTORFISH_CAPTURE_PIC:; // ; fixes random err
@@ -831,33 +838,41 @@ void app_main(void)
 
             if (db_poll_attempts++ <= db_poll_limit)
             {
-                // wait until the question status has changed
-                vTaskDelay(10000 / portTICK_PERIOD_MS);
-
-                http_status = http_get_request2("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/student-question-status", "documentId", true);
+                http_status = http_get_request("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/student-question-status", "documentId", true);
                 if (http_status == 200)
                 {
-                    ESP_LOGI(TAG, "nvs_data.question_status: %s", nvs_data.question_status);
+                    // memset(nvs_data.question_status, 0, 255);
+                    // const char unanswered[10] = "unanswered";
+                    // strncpy(nvs_data.question_status,unanswered, 10);
 
-                    if (strcmp(nvs_data.question_status, "answered") == 0)
-                    {
-                        db_poll_attempts = 0;
-                        state_machine = TUTORFISH_DOWNLOAD_TTS;
-                        break;
-                    }
-                    else if (strcmp(nvs_data.question_status, "issue") == 0)
+                    if (strcmp(nvs_data.question_status, "issue") == 0)
                     {
                         db_poll_attempts = 0;
                         state_machine = TUTORFISH_PIC_ISSUE;
                         break;
                     }
-                    else if (strcmp(nvs_data.question_status, "pending") == 0)
-                    {
-                        // playback "pending" audio
-                    }
-                    else if (strcmp(nvs_data.question_status, "unanswered") == 0)
+                    else if (strcmp(nvs_data.question_status, "unanswered") == 0 || strcmp(nvs_data.question_status, "pending") == 0)
                     {
                         // playback "unanswered" audio
+                        if (audio_buf.tutors_look_for_answer_00_wav_audio_buf == NULL)
+                        {
+                            err = malloc_tutors_look_for_answer_00_wav();
+                            if (err != ESP_OK)
+                            {
+                                ESP_LOGE(TAG, "malloc_error_message_00_wav() err: %s", esp_err_to_name(err));
+                            }
+
+                            if (err == ESP_OK)
+                            {
+                                err = playback_audio_file(audio_buf.tutors_look_for_answer_00_wav_audio_buf, audio_buf.tutors_look_for_answer_00_wav_len, 0.2f, false);
+                                if (err != ESP_OK)
+                                {
+                                    ESP_LOGE(TAG, "playback_audio_file(tutors_look_for_answer_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                                }
+
+                                free_tutors_look_for_answer_00_wav();
+                            }
+                        }
                     }
                     else if (strcmp(nvs_data.question_status, "expired") == 0)
                     {
@@ -869,15 +884,83 @@ void app_main(void)
                     else if (strcmp(nvs_data.question_status, "canceled") == 0)
                     {
                         // playback "canceled" audio
+                        db_poll_attempts = 0;
+                        state_machine = TUTORFISH_SUBMIT_QUESTION_COMPLETE;
+                        break;
+                    }
+                    else
+                    {
+                        // NOTE:
+                        // server does not return "answered" instead the server
+                        // returns the tts download link
+                        // check TutorFish website source, "student_question_status.js" ~line 49 for more details
+
+                        // playback audio
+                        if (audio_buf.tutors_found_answer_00_wav_audio_buf == NULL)
+                        {
+                            err = malloc_tutors_found_answer_00_wav();
+                            if (err != ESP_OK)
+                            {
+                                ESP_LOGE(TAG, "malloc_error_message_00_wav() err: %s", esp_err_to_name(err));
+                            }
+
+                            if (err == ESP_OK)
+                            {
+                                err = playback_audio_file(audio_buf.tutors_found_answer_00_wav_audio_buf, audio_buf.tutors_found_answer_00_wav_len, 0.2f, false);
+                                if (err != ESP_OK)
+                                {
+                                    ESP_LOGE(TAG, "playback_audio_file(tutors_found_answer_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                                }
+
+                                free_tutors_found_answer_00_wav();
+                            }
+                        }
+
+                        memset(nvs_data.question_ttsKey, 0, 255);
+                        strcpy(nvs_data.question_ttsKey, nvs_data.question_status);
+
+                        db_poll_attempts = 0;
+                        state_machine = TUTORFISH_DOWNLOAD_TTS;
+                        break;
                     }
                 }
                 else
                 {
                     // http error
+                    // if the http_status == 401; the users session token is invalid
+                    if (http_status == 401)
+                    {
+                        state_machine = TUTORFISH_VALIDATE_SESSION;
+                        break;
+                    }
                 }
+
+                // wait until the question status has changed
+                vTaskDelay(10000 / portTICK_PERIOD_MS);
             }
             else
             {
+                // playback error message
+                if (audio_buf.error_message_00_wav_audio_buf == NULL)
+                {
+                    err = malloc_error_message_00_wav();
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "malloc_error_message_00_wav() err: %s", esp_err_to_name(err));
+                    }
+
+                    if (err == ESP_OK)
+                    {
+                        err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, 0.2f, false);
+                        if (err != ESP_OK)
+                        {
+                            ESP_LOGE(TAG, "playback_audio_file(error_message_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                        }
+
+                        free_error_message_00_wav();
+                    }
+                }
+
                 // db_poll_attempts has reach its limit
                 db_poll_attempts = 0;
                 state_machine = TUTORFISH_SUBMIT_QUESTION_COMPLETE;
@@ -892,28 +975,79 @@ void app_main(void)
             state_machine = TUTORFISH_SUBMIT_QUESTION_COMPLETE;
             break;
         case TUTORFISH_DOWNLOAD_TTS:
-            ESP_LOGI(TAG, "downloading the tts from the db link");
-            vTaskDelay(2000 / portTICK_PERIOD_MS);
 
-            state_machine = TUTORFISH_PLAYBACK_ANSWER;
+            ESP_LOGI(TAG, "downloading the tts from the db link. attempt #%d", tts_download_attempts);
+
+            if (tts_download_attempts++ <= tts_download_limit)
+            {
+                http_status = http_download_file("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/student-download-tts", "ttsKey", true);
+                if (http_status == ESP_OK)
+                {
+                    if (audio_buf.tts_audio_len > 0)
+                    {
+                        tts_download_attempts = 0;
+                        state_machine = TUTORFISH_PLAYBACK_ANSWER;
+                        break;
+                    }
+                }
+                else
+                {
+                    ESP_LOGE(TAG, "http_download_file() http_status: %d", http_status);
+                }
+            }
+
             break;
         case TUTORFISH_PLAYBACK_ANSWER:
 
             repeat_tts_playback = false;
 
             ESP_LOGI(TAG, "playing the tts audio");
-            vTaskDelay(2000 / portTICK_PERIOD_MS);
+
+            // playback error message
+            if (audio_buf.tts_audio_buf != NULL)
+            {
+                err = playback_audio_file(audio_buf.tts_audio_buf, audio_buf.tts_audio_len, 0.2f, false);
+                if (err != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "playback_audio_file(tts_audio_buf) err: %s", esp_err_to_name(err));
+                }
+            }
+
+            // playback error message
+            if (audio_buf.to_hear_the_answer_again_00_wav_audio_buf == NULL)
+            {
+                err = malloc_to_hear_the_answer_again_00_wav();
+                if (err != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "malloc_to_hear_the_answer_again_00_wav() err: %s", esp_err_to_name(err));
+                }
+
+                if (err == ESP_OK)
+                {
+                    err = playback_audio_file(audio_buf.to_hear_the_answer_again_00_wav_audio_buf, audio_buf.to_hear_the_answer_again_00_wav_len, 0.2f, true);
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "playback_audio_file(to_hear_the_answer_again_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                    }
+
+                    free_to_hear_the_answer_again_00_wav();
+                }
+            }
 
             ESP_LOGI(TAG, "tap the right stem to repeat this answer, otherwise glasses will sleep");
+
             vTaskDelay(3000 / portTICK_PERIOD_MS);
 
             if (!repeat_tts_playback)
             {
+                free(audio_buf.tts_audio_buf);
+                audio_buf.tts_audio_buf = NULL;
+
                 state_machine = TUTORFISH_SUBMIT_QUESTION_COMPLETE;
+                break;
             }
 
             break;
-
         case TUTORFISH_SUBMIT_QUESTION_COMPLETE:
             ESP_LOGI(TAG, "TUTORFISH_SUBMIT_QUESTION_COMPLETE cleaning up and setting up wake trigger");
             vTaskDelay(1000 / portTICK_PERIOD_MS);

@@ -17,8 +17,8 @@ typedef struct
     uint8_t attempting_pic_capture; // 0 = false; 1 = true;
     char *documentId;
     size_t documentId_len;
-    char question_status[24];
-    size_t question_status_len;
+    char question_status[255];
+    char question_ttsKey[255];
 } nvs_data_t;
 
 extern nvs_data_t nvs_data;

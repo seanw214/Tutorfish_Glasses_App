@@ -47,6 +47,15 @@ void free_uploading_the_picture_please_wait_00_wav(void);
 esp_err_t malloc_error_message_00_wav(void);
 void free_error_message_00_wav(void);
 
+esp_err_t malloc_to_hear_the_answer_again_00_wav(void);
+void free_to_hear_the_answer_again_00_wav(void);
+
+esp_err_t malloc_tutors_found_answer_00_wav(void);
+void free_tutors_found_answer_00_wav(void);
+
+esp_err_t malloc_tutors_look_for_answer_00_wav(void);
+void free_tutors_look_for_answer_00_wav(void);
+
 typedef struct
 {
     // bool hfp_i2s_playing;
@@ -54,9 +63,9 @@ typedef struct
     bool system_i2s_playing;
     bool system_i2s_stop;
 
-    // test audio
-    int8_t *p_wav_audio_buf;
-    int p_wav_len;
+    // downloaded tts audio
+    char *tts_audio_buf;
+    int tts_audio_len;
 
     // tutorfish audio
     int8_t *welcome_01_wav_audio_buf;
@@ -82,6 +91,15 @@ typedef struct
 
     int8_t *uploading_the_picture_please_wait_00_wav_audio_buf;
     int uploading_the_picture_please_wait_00_wav_len;
+
+    int8_t *to_hear_the_answer_again_00_wav_audio_buf;
+    int to_hear_the_answer_again_00_wav_len;
+
+    int8_t *tutors_found_answer_00_wav_audio_buf;
+    int tutors_found_answer_00_wav_len;
+
+    int8_t *tutors_look_for_answer_00_wav_audio_buf;
+    int tutors_look_for_answer_00_wav_len;
 
     // system audio
     int16_t *returning_home_wav_audio_buf;

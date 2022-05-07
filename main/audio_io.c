@@ -14,11 +14,14 @@
 #include "to_conserve_battery_01.h"
 #include "taking_a_picture321_02.h"
 #include "uploading_the_picture_please_wait_00.h"
+#include "to_hear_the_answer_again_00.h"
+#include "tutors_found_answer_00.h"
+#include "tutors_look_for_answer_00.h"
 
 static const char *TAG = "audio_io.c";
 
 #define I2S_BCK_IO (2)
-#define I2S_WS_IO (19) // MTMS (GPIO14) when using pcb -> GPIO19 breakout
+#define I2S_WS_IO (19)
 #define I2S_DO_IO (5)
 #define I2S_DI_IO (36)
 
@@ -506,6 +509,66 @@ void free_uploading_the_picture_please_wait_00_wav(void)
 {
     free(audio_buf.uploading_the_picture_please_wait_00_wav_audio_buf);
     audio_buf.uploading_the_picture_please_wait_00_wav_audio_buf = NULL;
+}
+
+esp_err_t malloc_to_hear_the_answer_again_00_wav(void)
+{
+    audio_buf.to_hear_the_answer_again_00_wav_len = to_hear_the_answer_again_00_wav_len;
+
+    audio_buf.to_hear_the_answer_again_00_wav_audio_buf = malloc(audio_buf.to_hear_the_answer_again_00_wav_len);
+
+    for (int i = 0; i < audio_buf.to_hear_the_answer_again_00_wav_len; i++)
+    {
+        audio_buf.to_hear_the_answer_again_00_wav_audio_buf[i] = to_hear_the_answer_again_00_wav[i];
+    }
+
+    return ESP_OK;
+}
+
+void free_to_hear_the_answer_again_00_wav(void)
+{
+    free(audio_buf.to_hear_the_answer_again_00_wav_audio_buf);
+    audio_buf.to_hear_the_answer_again_00_wav_audio_buf = NULL;
+}
+
+esp_err_t malloc_tutors_found_answer_00_wav(void)
+{
+    audio_buf.tutors_found_answer_00_wav_len = tutors_found_answer_00_wav_len;
+
+    audio_buf.tutors_found_answer_00_wav_audio_buf = malloc(audio_buf.tutors_found_answer_00_wav_len);
+
+    for (int i = 0; i < audio_buf.tutors_found_answer_00_wav_len; i++)
+    {
+        audio_buf.tutors_found_answer_00_wav_audio_buf[i] = tutors_found_answer_00_wav[i];
+    }
+
+    return ESP_OK;
+}
+
+void free_tutors_found_answer_00_wav(void)
+{
+    free(audio_buf.tutors_found_answer_00_wav_audio_buf);
+    audio_buf.to_hear_the_answer_again_00_wav_audio_buf = NULL;
+}
+
+esp_err_t malloc_tutors_look_for_answer_00_wav(void)
+{
+    audio_buf.tutors_look_for_answer_00_wav_len = tutors_look_for_answer_00_wav_len;
+
+    audio_buf.tutors_look_for_answer_00_wav_audio_buf = malloc(audio_buf.tutors_look_for_answer_00_wav_len);
+
+    for (int i = 0; i < audio_buf.tutors_look_for_answer_00_wav_len; i++)
+    {
+        audio_buf.tutors_look_for_answer_00_wav_audio_buf[i] = tutors_look_for_answer_00_wav[i];
+    }
+
+    return ESP_OK;
+}
+
+void free_tutors_look_for_answer_00_wav(void)
+{
+    free(audio_buf.tutors_look_for_answer_00_wav_audio_buf);
+    audio_buf.tutors_look_for_answer_00_wav_audio_buf = NULL;
 }
 
 esp_err_t play_submit_question_instructions(void)
