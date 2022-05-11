@@ -585,7 +585,7 @@ esp_err_t play_submit_question_instructions(void)
 
         if (err == ESP_OK)
         {
-            playback_audio_file(audio_buf.the_camera_take_a_pic_01_wav_audio_buf, audio_buf.the_camera_take_a_pic_01_wav_len, 0.2f, true);
+            playback_audio_file(audio_buf.the_camera_take_a_pic_01_wav_audio_buf, audio_buf.the_camera_take_a_pic_01_wav_len, audio_volume, true);
             if (err != ESP_OK)
             {
                 ESP_LOGE(TAG, "playback_audio_file(the_camera_take_a_pic_01_wav_audio_buf) err: %s", esp_err_to_name(err));
@@ -605,7 +605,7 @@ esp_err_t play_submit_question_instructions(void)
 
         if (err == ESP_OK)
         {
-            playback_audio_file(audio_buf.look_at_your_question_01_wav_audio_buf, audio_buf.look_at_your_question_01_wav_len, 0.2f, true);
+            playback_audio_file(audio_buf.look_at_your_question_01_wav_audio_buf, audio_buf.look_at_your_question_01_wav_len, audio_volume, true);
             if (err != ESP_OK)
             {
                 ESP_LOGE(TAG, "playback_audio_file(look_at_your_question_01_wav_audio_buf) err: %s", esp_err_to_name(err));
@@ -625,7 +625,7 @@ esp_err_t play_submit_question_instructions(void)
 
         if (err == ESP_OK)
         {
-            playback_audio_file(audio_buf.to_conserve_battery_01_wav_audio_buf, audio_buf.to_conserve_battery_01_wav_len, 0.2f, true);
+            playback_audio_file(audio_buf.to_conserve_battery_01_wav_audio_buf, audio_buf.to_conserve_battery_01_wav_len, audio_volume, true);
             if (err != ESP_OK)
             {
                 ESP_LOGE(TAG, "playback_audio_file(look_at_your_question_01_wav_audio_buf) err: %s", esp_err_to_name(err));
@@ -664,7 +664,7 @@ esp_err_t playback_audio_file(int16_t *audio_file_buf, int audio_file_len, float
     for (int i = 0; i <= audio_file_len / sizeof(int16_t); i++)
     {
         // removes the pop from the wav file bytes
-        if (i <= 1000)
+        if (i <= 5000)
         {
             temp_buf[i] = 0x00;
         }
@@ -789,6 +789,32 @@ esp_err_t playback_audio_file_2(int16_t *audio_file_buf, int audio_file_len, flo
     return err;
 }
 */
+
+esp_err_t playback_error_message(void)
+{
+    // playback error message
+    if (audio_buf.error_message_00_wav_audio_buf == NULL)
+    {
+        esp_err_t err = malloc_error_message_00_wav();
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "malloc_error_message_00_wav() err: %s", esp_err_to_name(err));
+        }
+
+        if (err == ESP_OK)
+        {
+            err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, audio_volume, false);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "playback_audio_file(error_message_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+            }
+
+            free_error_message_00_wav();
+        }
+        return err;
+    }
+    return ESP_FAIL;
+}
 
 esp_err_t _i2s_stop(void)
 {

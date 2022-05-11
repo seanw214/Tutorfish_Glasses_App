@@ -181,7 +181,7 @@ bool websocket_app_start(camera_fb_t *pic)
 
         if (err == ESP_OK)
         {
-            err = playback_audio_file(audio_buf.taking_a_picture321_02_wav_audio_buf, audio_buf.taking_a_picture321_02_wav_len, 0.2f, false);
+            err = playback_audio_file(audio_buf.taking_a_picture321_02_wav_audio_buf, audio_buf.taking_a_picture321_02_wav_len, audio_volume, false);
             if (err != ESP_OK)
             {
                 ESP_LOGE(TAG, "playback_audio_file(taking_a_picture321_02_wav_audio_buf) err: %s", esp_err_to_name(err));
@@ -216,7 +216,7 @@ bool websocket_app_start(camera_fb_t *pic)
 
                         if (err == ESP_OK)
                         {
-                            err = playback_audio_file(audio_buf.uploading_the_picture_please_wait_00_wav_audio_buf, audio_buf.uploading_the_picture_please_wait_00_wav_len, 0.2f, false);
+                            err = playback_audio_file(audio_buf.uploading_the_picture_please_wait_00_wav_audio_buf, audio_buf.uploading_the_picture_please_wait_00_wav_len, audio_volume, false);
                             if (err != ESP_OK)
                             {
                                 ESP_LOGE(TAG, "playback_audio_file(uploading_the_picture_please_wait_00_wav_audio_buf) err: %s", esp_err_to_name(err));
@@ -285,7 +285,7 @@ bool websocket_app_start(camera_fb_t *pic)
 
         if (err == ESP_OK)
         {
-            err = playback_audio_file(audio_buf.uploading_the_picture_please_wait_00_wav_audio_buf, audio_buf.uploading_the_picture_please_wait_00_wav_len, 0.2f, false);
+            err = playback_audio_file(audio_buf.uploading_the_picture_please_wait_00_wav_audio_buf, audio_buf.uploading_the_picture_please_wait_00_wav_len, audio_volume, false);
             if (err != ESP_OK)
             {
                 ESP_LOGE(TAG, "playback_audio_file(uploading_the_picture_please_wait_00_wav_audio_buf) err: %s", esp_err_to_name(err));

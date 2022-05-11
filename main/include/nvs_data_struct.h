@@ -19,6 +19,7 @@ typedef struct
     size_t documentId_len;
     char question_status[255];
     char question_ttsKey[255];
+    uint8_t volume_lvl;
 } nvs_data_t;
 
 extern nvs_data_t nvs_data;

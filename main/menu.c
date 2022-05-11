@@ -29,7 +29,7 @@ esp_err_t browse_menu(void)
 
                 if (err == ESP_OK)
                 {
-                    playback_audio_file(audio_buf.tutor_fish_settings_00_wav_audio_buf, audio_buf.tutor_fish_settings_00_wav_len, 0.2f, false);
+                    playback_audio_file(audio_buf.tutor_fish_settings_00_wav_audio_buf, audio_buf.tutor_fish_settings_00_wav_len, audio_volume, false);
                     if (err != ESP_OK)
                     {
                         ESP_LOGE(TAG, "playback_audio_file(tutor_fish_settings_00_wav_audio_buf) err: %s", esp_err_to_name(err));
@@ -53,7 +53,7 @@ esp_err_t browse_menu(void)
 
                 if (err == ESP_OK)
                 {
-                    playback_audio_file(audio_buf.submit_a_question_00_wav_audio_buf, audio_buf.submit_a_question_00_wav_len, 0.2f, false);
+                    playback_audio_file(audio_buf.submit_a_question_00_wav_audio_buf, audio_buf.submit_a_question_00_wav_len, audio_volume, false);
                     if (err != ESP_OK)
                     {
                         ESP_LOGE(TAG, "playback_audio_file(submit_a_question_00_wav_audio_buf) err: %s", esp_err_to_name(err));

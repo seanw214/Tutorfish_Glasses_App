@@ -63,7 +63,7 @@ static void event_handler(void *arg, esp_event_base_t event_base,
 
             if (err == ESP_OK)
             {
-                playback_audio_file(audio_buf.attempt_wifi_conn_00_wav_audio_buf, audio_buf.attempt_wifi_conn_00_wav_audio_len, 0.2f, false);
+                playback_audio_file(audio_buf.attempt_wifi_conn_00_wav_audio_buf, audio_buf.attempt_wifi_conn_00_wav_audio_len, audio_volume, false);
                 if (err != ESP_OK)
                 {
                     ESP_LOGE(TAG, "playback_audio_file(submit_a_question_00_wav_audio_buf) err: %s", esp_err_to_name(err));

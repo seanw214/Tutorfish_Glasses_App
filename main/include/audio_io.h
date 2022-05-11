@@ -5,6 +5,7 @@ esp_err_t init_i2s(void);
 esp_err_t _i2s_stop(void);
 esp_err_t playback_audio_file(int16_t *audio_file_buf, int audio_file_len, float audio_volume, bool audio_playback_stoppable);
 esp_err_t play_submit_question_instructions(void);
+esp_err_t playback_error_message(void);
 
 esp_err_t malloc_returning_home_wav(void);
 void free_returning_home_wav(void);
@@ -123,5 +124,6 @@ typedef struct
 
 extern audio_buf_t audio_buf;
 extern bool repeat_tts_playback;
+extern float audio_volume;
 
 #endif //AUDIO_IO_H__

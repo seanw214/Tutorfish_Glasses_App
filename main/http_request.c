@@ -434,10 +434,10 @@ size_t http_get_request(char *hostname, char *path, char *query, bool cookie)
 
         if (strcmp(query, "documentId") == 0)
         {
-            //const char *documentId = "documentId=";
-            const char *documentId = "documentId=w2EKdfqufgjNO0IU8SZS"; // NOTE: remove when NOT testing
+            const char *documentId = "documentId=";
+            //const char *documentId = "documentId=w2EKdfqufgjNO0IU8SZS"; // NOTE: remove when NOT testing
             strcat(query_, documentId);
-            //strncat(query_, nvs_data.documentId, nvs_data.documentId_len);
+            strncat(query_, nvs_data.documentId, nvs_data.documentId_len);
         }
 
         config.query = query_;
@@ -687,9 +687,11 @@ static int sendImage(esp_http_client_handle_t client, camera_fb_t *pic)
 
     // Send file parts
     // char buffer[HTTP_BUFFER_SIZE];
+    bool playback_uploading_picture_message = false;
     unsigned fileProgress = 0;
     while (fileProgress < img_len)
     {
+        // write the remaining bytes that is less than 1024 to the client
         if ((fileProgress + 1024) > img_len)
         {
             uint16_t remaining_bytes = img_len % 1024;
@@ -717,7 +719,35 @@ static int sendImage(esp_http_client_handle_t client, camera_fb_t *pic)
         time_t now;
         time(&now);
         if ((float)(now - fileTransferStart) / 1024 > 0)
+        {
             ESP_LOGI(TAG, "%u/%u bytes sent total %.02f KiB/s", fileProgress, img_len, fileProgress / (float)(now - fileTransferStart) / 1024);
+        }
+
+        // playback uploading message when the picture is halfway uploaded
+        if (fileProgress >= img_len / 2 && !playback_uploading_picture_message)
+        {
+            if (audio_buf.uploading_the_picture_please_wait_00_wav_audio_buf == NULL)
+            {
+                err = malloc_uploading_the_picture_please_wait_00_wav();
+                if (err != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "malloc_uploading_the_picture_please_wait_00_wav() err: %s", esp_err_to_name(err));
+                }
+
+                if (err == ESP_OK)
+                {
+                    err = playback_audio_file(audio_buf.uploading_the_picture_please_wait_00_wav_audio_buf, audio_buf.uploading_the_picture_please_wait_00_wav_len, audio_volume, true);
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "playback_audio_file(uploading_the_picture_please_wait_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                    }
+
+                    free_uploading_the_picture_please_wait_00_wav();
+                }
+            }
+
+            playback_uploading_picture_message = true;
+        }
     }
 
     // finish Multipart request

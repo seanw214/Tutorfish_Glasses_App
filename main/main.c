@@ -16,6 +16,7 @@
 #include "home_button.h"
 #include "touch.h"
 #include "menu.h"
+#include "red_wht_led.h"
 
 #include "blue_led.h"
 bool blue_led_task_init = false;
@@ -31,9 +32,11 @@ state_machine_t state_machine;
 bool tutorfish_home_init = false;
 bool tutorfish_submit_question_init = false;
 bool tutorfish_settings_init = false;
+static bool tutorfish_playback_answer_init = false;
 
 #include "audio_io.h"
 bool repeat_tts_playback = false;
+float audio_volume;
 
 #include "nvs_data_struct.h"
 nvs_data_t nvs_data;
@@ -50,6 +53,8 @@ static uint8_t tts_download_attempts = 0;
 
 static const uint8_t validate_session_cookie_get_limit = 4;
 static uint8_t validate_session_cookie_get_attempts = 0;
+
+static bool enable_pic12 = false;
 
 size_t http_status = 0;
 
@@ -137,6 +142,29 @@ void app_main(void)
     {
         ESP_LOGE(TAG, "read_nvs_session_cookie() err: %s", esp_err_to_name(err));
     }
+
+    // get the audio volume level set by the user
+    err = read_nvs_int("volume_lvl", &nvs_data.volume_lvl);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "read_nvs_int() err: %s", esp_err_to_name(err));
+
+        err = write_nvs_int("volume_lvl", 10);
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "write_nvs_int(attempt_pic) err: %s", esp_err_to_name(err));
+        }
+
+        err = read_nvs_int("volume_lvl", &nvs_data.volume_lvl);
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "read_nvs_int(attempt_pic) read_nvs_int(attempt_pic) err: %s", esp_err_to_name(err));
+        }
+    }
+
+    // convert to float
+    audio_volume = nvs_data.volume_lvl * 0.01f;
+    ESP_LOGI(TAG, "audio_volume: %f", audio_volume);
 
     /*
     err = erase_nvs_key("jpg_exponent");
@@ -245,7 +273,16 @@ void app_main(void)
         ESP_LOGE(TAG, "init_blue_led() err: %s", esp_err_to_name(err));
     }
 
-    /*
+    if (!enable_pic12)
+    {
+        // put the pic12 to sleep
+        err = init_red_wht_led();
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "init_red_wht_led() err: %s", esp_err_to_name(err));
+        }
+    }
+
     if (audio_buf.welcome_01_wav_audio_buf == NULL)
     {
         err = malloc_welcome_to_tutor_fish_01();
@@ -256,7 +293,7 @@ void app_main(void)
 
         if (err == ESP_OK)
         {
-            playback_audio_file(audio_buf.welcome_01_wav_audio_buf, audio_buf.welcome_01_audio_len, 0.2f, false);
+            playback_audio_file(audio_buf.welcome_01_wav_audio_buf, audio_buf.welcome_01_audio_len, audio_volume, false);
             if (err != ESP_OK)
             {
                 ESP_LOGE(TAG, "playback_audio_file(welcome_01_wav_audio_buf) err: %s", esp_err_to_name(err));
@@ -276,7 +313,7 @@ void app_main(void)
 
         if (err == ESP_OK)
         {
-            playback_audio_file(audio_buf.home_instructions_00_wav_audio_buf, audio_buf.home_instructions_00_wav_audio_len, 0.2f, true);
+            playback_audio_file(audio_buf.home_instructions_00_wav_audio_buf, audio_buf.home_instructions_00_wav_audio_len, audio_volume, true);
             if (err != ESP_OK)
             {
                 ESP_LOGE(TAG, "playback_audio_file(home_instructions_00_wav_audio_buf) err: %s", esp_err_to_name(err));
@@ -296,7 +333,7 @@ void app_main(void)
 
         if (err == ESP_OK)
         {
-            playback_audio_file(audio_buf.exit_this_app_00_wav_audio_buf, audio_buf.exit_this_app_00_wav_audio_len, 0.2f, true);
+            playback_audio_file(audio_buf.exit_this_app_00_wav_audio_buf, audio_buf.exit_this_app_00_wav_audio_len, audio_volume, true);
             if (err != ESP_OK)
             {
                 ESP_LOGE(TAG, "playback_audio_file(exit_this_app_00_wav_audio_buf) err: %s", esp_err_to_name(err));
@@ -305,10 +342,9 @@ void app_main(void)
             free_exit_this_app_00();
         }
     }
-    */
 
-    // state_machine = TUTORFISH_HOME;
-    state_machine = CONNECT_TO_WIFI;
+    state_machine = TUTORFISH_HOME;
+    // state_machine = CONNECT_TO_WIFI;
 
     while (true)
     {
@@ -365,7 +401,7 @@ void app_main(void)
 
                     if (err == ESP_OK)
                     {
-                        playback_audio_file(audio_buf.submit_a_question_00_wav_audio_buf, audio_buf.submit_a_question_00_wav_len, 0.2f, false);
+                        playback_audio_file(audio_buf.submit_a_question_00_wav_audio_buf, audio_buf.submit_a_question_00_wav_len, audio_volume, false);
                         if (err != ESP_OK)
                         {
                             ESP_LOGE(TAG, "playback_audio_file(submit_a_question_00_wav_audio_buf) err: %s", esp_err_to_name(err));
@@ -390,8 +426,8 @@ void app_main(void)
                 wifi_bt_status.wifi_init = true;
                 wifi_bt_status.wifi_conn = true;
 
-                // state_machine = TUTORFISH_VALIDATE_SESSION;
-                state_machine = TUTORFISH_POLL_DB;
+                state_machine = TUTORFISH_VALIDATE_SESSION;
+                // state_machine = TUTORFISH_POLL_DB;
                 break;
             }
             // wifi connection retry timed-out
@@ -441,7 +477,7 @@ void app_main(void)
 
                     if (err == ESP_OK)
                     {
-                        playback_audio_file(audio_buf.returning_home_wav_audio_buf, audio_buf.returning_home_wav_audio_len, 0.2f, false);
+                        playback_audio_file(audio_buf.returning_home_wav_audio_buf, audio_buf.returning_home_wav_audio_len, audio_volume, false);
                         if (err != ESP_OK)
                         {
                             ESP_LOGE(TAG, "playback_audio_file(returning_home_wav_audio_buf) err: %s", esp_err_to_name(err));
@@ -515,7 +551,7 @@ void app_main(void)
             {
                 ESP_LOGI(TAG, "TUTORFISH_SUBMIT_QUESTION");
 
-                // play_submit_question_instructions();
+                play_submit_question_instructions();
 
                 tutorfish_submit_question_init = true;
 
@@ -543,7 +579,7 @@ void app_main(void)
 
                     if (err == ESP_OK)
                     {
-                        err = playback_audio_file(audio_buf.taking_a_picture321_02_wav_audio_buf, audio_buf.taking_a_picture321_02_wav_len, 0.2f, false);
+                        err = playback_audio_file(audio_buf.taking_a_picture321_02_wav_audio_buf, audio_buf.taking_a_picture321_02_wav_len, audio_volume, false);
                         if (err != ESP_OK)
                         {
                             ESP_LOGE(TAG, "playback_audio_file(taking_a_picture321_02_wav_audio_buf) err: %s", esp_err_to_name(err));
@@ -592,7 +628,7 @@ void app_main(void)
 
                 if (pic_taken)
                 {
-
+                    // lower the jpg_quality of the pic to capture image reliably
                     if (nvs_data.jpeg_quality_exponent > 0)
                     {
                         nvs_data.jpeg_quality_exponent -= 1;
@@ -636,7 +672,7 @@ void app_main(void)
 
                         if (err == ESP_OK)
                         {
-                            err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, 0.2f, false);
+                            err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, audio_volume, false);
                             if (err != ESP_OK)
                             {
                                 ESP_LOGE(TAG, "playback_audio_file(error_message_00_wav_audio_buf) err: %s", esp_err_to_name(err));
@@ -756,7 +792,27 @@ void app_main(void)
                 state_machine = TUTORFISH_HOME;
             }
             break;
-        case TUTORFISH_CAPTURE_PIC:; // ; fixes random err
+        case TUTORFISH_CAPTURE_PIC: //; // ; fixes random err
+
+            if (audio_buf.uploading_the_picture_please_wait_00_wav_audio_buf == NULL)
+            {
+                err = malloc_uploading_the_picture_please_wait_00_wav();
+                if (err != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "malloc_uploading_the_picture_please_wait_00_wav() err: %s", esp_err_to_name(err));
+                }
+
+                if (err == ESP_OK)
+                {
+                    err = playback_audio_file(audio_buf.uploading_the_picture_please_wait_00_wav_audio_buf, audio_buf.uploading_the_picture_please_wait_00_wav_len, audio_volume, false);
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "playback_audio_file(uploading_the_picture_please_wait_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                    }
+
+                    free_uploading_the_picture_please_wait_00_wav();
+                }
+            }
 
             // send pic buffer to server via http
             const int ret_code = https_send_pic(true, pic);
@@ -780,7 +836,7 @@ void app_main(void)
 
                     if (err == ESP_OK)
                     {
-                        err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, 0.2f, false);
+                        err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, audio_volume, false);
                         if (err != ESP_OK)
                         {
                             ESP_LOGE(TAG, "playback_audio_file(error_message_00_wav_audio_buf) err: %s", esp_err_to_name(err));
@@ -796,37 +852,6 @@ void app_main(void)
                 break;
             }
 
-            /*
-            if (!websocket_app_start(pic))
-            {
-                // pic did not send to websocket
-
-                // playback error message
-                if (audio_buf.error_message_00_wav_audio_buf == NULL)
-                {
-                    err = malloc_error_message_00_wav();
-                    if (err != ESP_OK)
-                    {
-                        ESP_LOGE(TAG, "malloc_error_message_00_wav() err: %s", esp_err_to_name(err));
-                    }
-
-                    if (err == ESP_OK)
-                    {
-                        err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, 0.2f, false);
-                        if (err != ESP_OK)
-                        {
-                            ESP_LOGE(TAG, "playback_audio_file(error_message_00_wav_audio_buf) err: %s", esp_err_to_name(err));
-                        }
-
-                        free_error_message_00_wav();
-                    }
-                }
-
-                state_machine = TUTORFISH_SUBMIT_QUESTION_COMPLETE;
-                break;
-            }
-            */
-
             state_machine = TUTORFISH_POLL_DB;
             break;
         case TUTORFISH_POLL_DB:
@@ -838,6 +863,35 @@ void app_main(void)
 
             if (db_poll_attempts++ <= db_poll_limit)
             {
+                // should never happen but just in case
+                if (nvs_data.documentId == NULL || nvs_data.documentId_len <= 0)
+                {
+                    // playback error message
+                    if (audio_buf.error_message_00_wav_audio_buf == NULL)
+                    {
+                        err = malloc_error_message_00_wav();
+                        if (err != ESP_OK)
+                        {
+                            ESP_LOGE(TAG, "malloc_error_message_00_wav() err: %s", esp_err_to_name(err));
+                        }
+
+                        if (err == ESP_OK)
+                        {
+                            err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, audio_volume, false);
+                            if (err != ESP_OK)
+                            {
+                                ESP_LOGE(TAG, "playback_audio_file(error_message_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                            }
+
+                            free_error_message_00_wav();
+                        }
+                    }
+
+                    db_poll_attempts = 0;
+                    state_machine = TUTORFISH_SUBMIT_QUESTION_COMPLETE;
+                    break;
+                }
+
                 http_status = http_get_request("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/student-question-status", "documentId", true);
                 if (http_status == 200)
                 {
@@ -845,7 +899,15 @@ void app_main(void)
                     // const char unanswered[10] = "unanswered";
                     // strncpy(nvs_data.question_status,unanswered, 10);
 
-                    if (strcmp(nvs_data.question_status, "issue") == 0)
+                    printf("nvs_data.question_status: %s\n", nvs_data.question_status);
+
+                    // check for empty response due to http_request.c local_response_buffer bug
+                    if (strcmp(nvs_data.question_status, "") == 0)
+                    {
+                        ESP_LOGE(TAG, "nvs_data.question_status is empty");
+                        break;
+                    }
+                    else if (strcmp(nvs_data.question_status, "issue") == 0)
                     {
                         db_poll_attempts = 0;
                         state_machine = TUTORFISH_PIC_ISSUE;
@@ -864,7 +926,7 @@ void app_main(void)
 
                             if (err == ESP_OK)
                             {
-                                err = playback_audio_file(audio_buf.tutors_look_for_answer_00_wav_audio_buf, audio_buf.tutors_look_for_answer_00_wav_len, 0.2f, false);
+                                err = playback_audio_file(audio_buf.tutors_look_for_answer_00_wav_audio_buf, audio_buf.tutors_look_for_answer_00_wav_len, audio_volume, false);
                                 if (err != ESP_OK)
                                 {
                                     ESP_LOGE(TAG, "playback_audio_file(tutors_look_for_answer_00_wav_audio_buf) err: %s", esp_err_to_name(err));
@@ -906,7 +968,7 @@ void app_main(void)
 
                             if (err == ESP_OK)
                             {
-                                err = playback_audio_file(audio_buf.tutors_found_answer_00_wav_audio_buf, audio_buf.tutors_found_answer_00_wav_len, 0.2f, false);
+                                err = playback_audio_file(audio_buf.tutors_found_answer_00_wav_audio_buf, audio_buf.tutors_found_answer_00_wav_len, audio_volume, false);
                                 if (err != ESP_OK)
                                 {
                                     ESP_LOGE(TAG, "playback_audio_file(tutors_found_answer_00_wav_audio_buf) err: %s", esp_err_to_name(err));
@@ -936,7 +998,7 @@ void app_main(void)
                 }
 
                 // wait until the question status has changed
-                vTaskDelay(10000 / portTICK_PERIOD_MS);
+                vTaskDelay(30000 / portTICK_PERIOD_MS);
             }
             else
             {
@@ -951,7 +1013,7 @@ void app_main(void)
 
                     if (err == ESP_OK)
                     {
-                        err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, 0.2f, false);
+                        err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, audio_volume, false);
                         if (err != ESP_OK)
                         {
                             ESP_LOGE(TAG, "playback_audio_file(error_message_00_wav_audio_buf) err: %s", esp_err_to_name(err));
@@ -980,6 +1042,35 @@ void app_main(void)
 
             if (tts_download_attempts++ <= tts_download_limit)
             {
+                // should never happen but just in case
+                if (strcmp(nvs_data.question_ttsKey, "") == 0)
+                {
+                    // playback error message
+                    if (audio_buf.error_message_00_wav_audio_buf == NULL)
+                    {
+                        err = malloc_error_message_00_wav();
+                        if (err != ESP_OK)
+                        {
+                            ESP_LOGE(TAG, "malloc_error_message_00_wav() err: %s", esp_err_to_name(err));
+                        }
+
+                        if (err == ESP_OK)
+                        {
+                            err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, audio_volume, false);
+                            if (err != ESP_OK)
+                            {
+                                ESP_LOGE(TAG, "playback_audio_file(error_message_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                            }
+
+                            free_error_message_00_wav();
+                        }
+                    }
+
+                    tts_download_attempts = 0;
+                    state_machine = TUTORFISH_SUBMIT_QUESTION_COMPLETE;
+                    break;
+                }
+
                 http_status = http_download_file("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/student-download-tts", "ttsKey", true);
                 if (http_status == ESP_OK)
                 {
@@ -999,21 +1090,43 @@ void app_main(void)
             break;
         case TUTORFISH_PLAYBACK_ANSWER:
 
+            // disable the wifi
+            if (!tutorfish_playback_answer_init)
+            {
+                if (blue_led_task_init)
+                {
+                    delete_blue_led_task();
+                    blue_led_task_init = false;
+                }
+
+                set_blue_led(0);
+
+                err = stop_wifi();
+                if (err != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "stop_wifi() error: %s", esp_err_to_name(err));
+                }
+                else
+                {
+                    wifi_bt_status.wifi_conn = false;
+                }
+
+                tutorfish_playback_answer_init = true;
+            }
+
             repeat_tts_playback = false;
 
-            ESP_LOGI(TAG, "playing the tts audio");
-
-            // playback error message
+            // playback downloaded TTS audio
             if (audio_buf.tts_audio_buf != NULL)
             {
-                err = playback_audio_file(audio_buf.tts_audio_buf, audio_buf.tts_audio_len, 0.2f, false);
+                err = playback_audio_file(audio_buf.tts_audio_buf, audio_buf.tts_audio_len, audio_volume, false);
                 if (err != ESP_OK)
                 {
                     ESP_LOGE(TAG, "playback_audio_file(tts_audio_buf) err: %s", esp_err_to_name(err));
                 }
             }
 
-            // playback error message
+            // playback repeat TTS audio
             if (audio_buf.to_hear_the_answer_again_00_wav_audio_buf == NULL)
             {
                 err = malloc_to_hear_the_answer_again_00_wav();
@@ -1024,7 +1137,7 @@ void app_main(void)
 
                 if (err == ESP_OK)
                 {
-                    err = playback_audio_file(audio_buf.to_hear_the_answer_again_00_wav_audio_buf, audio_buf.to_hear_the_answer_again_00_wav_len, 0.2f, true);
+                    err = playback_audio_file(audio_buf.to_hear_the_answer_again_00_wav_audio_buf, audio_buf.to_hear_the_answer_again_00_wav_len, audio_volume, true);
                     if (err != ESP_OK)
                     {
                         ESP_LOGE(TAG, "playback_audio_file(to_hear_the_answer_again_00_wav_audio_buf) err: %s", esp_err_to_name(err));
@@ -1036,12 +1149,16 @@ void app_main(void)
 
             ESP_LOGI(TAG, "tap the right stem to repeat this answer, otherwise glasses will sleep");
 
-            vTaskDelay(3000 / portTICK_PERIOD_MS);
+            // give the user 5 seconds after the message to decide
+            vTaskDelay(5000 / portTICK_PERIOD_MS);
 
+            // check touch.c for repeat_tts_playback
             if (!repeat_tts_playback)
             {
                 free(audio_buf.tts_audio_buf);
                 audio_buf.tts_audio_buf = NULL;
+
+                tutorfish_playback_answer_init = false;
 
                 state_machine = TUTORFISH_SUBMIT_QUESTION_COMPLETE;
                 break;
@@ -1050,7 +1167,6 @@ void app_main(void)
             break;
         case TUTORFISH_SUBMIT_QUESTION_COMPLETE:
             ESP_LOGI(TAG, "TUTORFISH_SUBMIT_QUESTION_COMPLETE cleaning up and setting up wake trigger");
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
 
             // free up documentId for new allocation in the future
             if (nvs_data.documentId != NULL)
@@ -1058,9 +1174,6 @@ void app_main(void)
                 free(nvs_data.documentId);
                 nvs_data.documentId = NULL;
             }
-
-            ESP_LOGI(TAG, "going to sleep");
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
 
             state_machine = TUTORFISH_SUBMIT_QUESTION;
 
