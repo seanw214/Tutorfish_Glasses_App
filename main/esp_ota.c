@@ -24,6 +24,7 @@
 //#include "esp_littlefs.h"
 #include "littlefs_helper.h"
 #include "nvs_flash.h"
+#include "audio_io.h"
 
 #define IMAGE_HEADER_SIZE sizeof(esp_image_header_t) + sizeof(esp_image_segment_header_t) + sizeof(esp_app_desc_t) + 1
 #define DEFAULT_OTA_BUF_SIZE IMAGE_HEADER_SIZE
@@ -58,13 +59,12 @@ struct esp_littlefs_ota_handle
 {
     esp_ota_handle_t update_handle;
     const esp_partition_t *update_partition;
-    //char *ota_upgrade_buf;
-    //size_t ota_upgrade_buf_size;
+    // char *ota_upgrade_buf;
+    // size_t ota_upgrade_buf_size;
     int binary_file_len;
 };
 
 typedef struct esp_littlefs_ota_handle esp_littlefs_ota_t;
-
 
 esp_err_t esp_littlefs_ota(void)
 {
@@ -88,7 +88,7 @@ esp_err_t esp_littlefs_ota(void)
         return err = ESP_FAIL;
     }
 
-   err = deinit_littlefs("audio");
+    err = deinit_littlefs("audio");
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "deinit_littlefs() err: %s", esp_err_to_name(err));
@@ -144,6 +144,7 @@ esp_err_t esp_littlefs_ota(void)
         return err;
     }
 
+    bool playback_please_wait_message = false;
     char *firmware_buf = malloc(1024);
     int bytes_written = 0;
 
@@ -246,11 +247,10 @@ esp_err_t get_current_running_app(void)
     // TODO : if the user requested app is the same as get_app_description->project_name, inform
     // them that "requested app is already open". If not continue...
 
-    //const esp_partition_t *current_partition = esp_ota_get_running_partition();
+    // const esp_partition_t *current_partition = esp_ota_get_running_partition();
 
-    //esp_app_desc_t *app_description;
-    //memcpy(app_description, get_app_description, sizeof(get_app_description))
-
+    // esp_app_desc_t *app_description;
+    // memcpy(app_description, get_app_description, sizeof(get_app_description))
 
     /*
     esp_err_t err = esp_ota_get_partition_description(current_partition, app_description);

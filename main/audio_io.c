@@ -33,6 +33,60 @@ static bool queued_audio_file_stoppable;
 
 audio_buf_t audio_buf;
 
+esp_err_t malloc_wait_app_loads_00_wav(void)
+{
+    const char *audio_file_path = "/audio/wait_app_loads_00.wav";
+
+    FILE *f = fopen(audio_file_path, "r");
+    if (f == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to open file reading");
+        return ESP_FAIL;
+    }
+
+    // Moving pointer to end
+    int f_err = fseek(f, 0, SEEK_END);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_END error");
+        return ESP_FAIL;
+    }
+
+    // get audio file length
+    audio_buf.wait_app_loads_00_wav_audio_len = ftell(f);
+    audio_buf.wait_app_loads_00_wav_audio_buf = malloc(audio_buf.wait_app_loads_00_wav_audio_len * sizeof(int16_t));
+
+    // Moving pointer to beginning
+    f_err = fseek(f, 0, SEEK_SET);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_SET error");
+        return ESP_FAIL;
+    }
+
+    int read_ret = fread(audio_buf.wait_app_loads_00_wav_audio_buf, sizeof(uint8_t), audio_buf.wait_app_loads_00_wav_audio_len, f);
+    if (read_ret != audio_buf.wait_app_loads_00_wav_audio_len)
+    {
+        ESP_LOGE(TAG, "fread() error. read %d bytes out of %d", read_ret, audio_buf.wait_app_loads_00_wav_audio_len);
+        return ESP_FAIL;
+    }
+
+    f_err = fclose(f);
+    if (f_err != 0)
+    {
+        ESP_LOGW(TAG, "fclose() failed");
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+}
+
+void free_wait_app_loads_00_wav(void)
+{
+    free(audio_buf.wait_app_loads_00_wav_audio_buf);
+    audio_buf.wait_app_loads_00_wav_audio_buf = NULL;
+}
+
 esp_err_t malloc_wifi_disconn_00_wav(void)
 {
     const char *audio_file_path = "/audio/wifi_disconn_00.wav";
@@ -664,7 +718,7 @@ esp_err_t playback_audio_file(int16_t *audio_file_buf, int audio_file_len, float
     for (int i = 0; i <= audio_file_len / sizeof(int16_t); i++)
     {
         // removes the pop from the wav file bytes
-        if (i <= 5000)
+        if (i <= 2000)
         {
             temp_buf[i] = 0x00;
         }

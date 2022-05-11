@@ -66,6 +66,26 @@ static void handle_double_press(void)
             }
         }
 
+        if (audio_buf.wait_app_loads_00_wav_audio_buf == NULL)
+        {
+            esp_err_t err_ = malloc_wait_app_loads_00_wav();
+            if (err_ != ESP_OK)
+            {
+                ESP_LOGE(TAG, "malloc_wait_app_loads_00_wav() err: %s", esp_err_to_name(err_));
+            }
+
+            if (err_ == ESP_OK)
+            {
+                playback_audio_file(audio_buf.wait_app_loads_00_wav_audio_buf, audio_buf.wait_app_loads_00_wav_audio_len, audio_volume, true);
+                if (err_ != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "playback_audio_file(wait_app_loads_00_wav_audio_buf) err: %s", esp_err_to_name(err_));
+                }
+
+                free_wait_app_loads_00_wav();
+            }
+        }
+
         err = get_current_running_app();
         if (err == ESP_OK)
         {

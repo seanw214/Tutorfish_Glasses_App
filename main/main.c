@@ -54,7 +54,7 @@ static uint8_t tts_download_attempts = 0;
 static const uint8_t validate_session_cookie_get_limit = 4;
 static uint8_t validate_session_cookie_get_attempts = 0;
 
-static bool enable_pic12 = false;
+static bool enable_pic12 = true;
 
 size_t http_status = 0;
 
@@ -115,6 +115,16 @@ esp_err_t setup_sleep(void)
 void app_main(void)
 {
     esp_err_t err;
+
+    if (enable_pic12)
+    {
+        // put the pic12 to sleep
+        err = init_red_wht_led();
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "init_red_wht_led() err: %s", esp_err_to_name(err));
+        }
+    }
 
     // Initialize NVS
     ESP_LOGI(TAG, "nvs_flash_init()");
@@ -273,78 +283,7 @@ void app_main(void)
         ESP_LOGE(TAG, "init_blue_led() err: %s", esp_err_to_name(err));
     }
 
-    if (!enable_pic12)
-    {
-        // put the pic12 to sleep
-        err = init_red_wht_led();
-        if (err != ESP_OK)
-        {
-            ESP_LOGE(TAG, "init_red_wht_led() err: %s", esp_err_to_name(err));
-        }
-    }
-
-    if (audio_buf.welcome_01_wav_audio_buf == NULL)
-    {
-        err = malloc_welcome_to_tutor_fish_01();
-        if (err != ESP_OK)
-        {
-            ESP_LOGE(TAG, "malloc_welcome_to_tutor_fish_01() err: %s", esp_err_to_name(err));
-        }
-
-        if (err == ESP_OK)
-        {
-            playback_audio_file(audio_buf.welcome_01_wav_audio_buf, audio_buf.welcome_01_audio_len, audio_volume, false);
-            if (err != ESP_OK)
-            {
-                ESP_LOGE(TAG, "playback_audio_file(welcome_01_wav_audio_buf) err: %s", esp_err_to_name(err));
-            }
-
-            free_welcome_to_tutor_fish_01();
-        }
-    }
-
-    if (audio_buf.home_instructions_00_wav_audio_buf == NULL)
-    {
-        err = malloc_home_instructions_00_wav();
-        if (err != ESP_OK)
-        {
-            ESP_LOGE(TAG, "malloc_home_instructions_00_wav() err: %s", esp_err_to_name(err));
-        }
-
-        if (err == ESP_OK)
-        {
-            playback_audio_file(audio_buf.home_instructions_00_wav_audio_buf, audio_buf.home_instructions_00_wav_audio_len, audio_volume, true);
-            if (err != ESP_OK)
-            {
-                ESP_LOGE(TAG, "playback_audio_file(home_instructions_00_wav_audio_buf) err: %s", esp_err_to_name(err));
-            }
-
-            free_home_instructions_00();
-        }
-    }
-
-    if (audio_buf.exit_this_app_00_wav_audio_buf == NULL)
-    {
-        err = malloc_exit_this_app_00_wav();
-        if (err != ESP_OK)
-        {
-            ESP_LOGE(TAG, "malloc_home_instructions_00_wav() err: %s", esp_err_to_name(err));
-        }
-
-        if (err == ESP_OK)
-        {
-            playback_audio_file(audio_buf.exit_this_app_00_wav_audio_buf, audio_buf.exit_this_app_00_wav_audio_len, audio_volume, true);
-            if (err != ESP_OK)
-            {
-                ESP_LOGE(TAG, "playback_audio_file(exit_this_app_00_wav_audio_buf) err: %s", esp_err_to_name(err));
-            }
-
-            free_exit_this_app_00();
-        }
-    }
-
     state_machine = TUTORFISH_HOME;
-    // state_machine = CONNECT_TO_WIFI;
 
     while (true)
     {
@@ -427,7 +366,6 @@ void app_main(void)
                 wifi_bt_status.wifi_conn = true;
 
                 state_machine = TUTORFISH_VALIDATE_SESSION;
-                // state_machine = TUTORFISH_POLL_DB;
                 break;
             }
             // wifi connection retry timed-out
@@ -539,6 +477,66 @@ void app_main(void)
             if (!tutorfish_home_init)
             {
                 ESP_LOGI(TAG, "TUTORFISH_HOME");
+
+                if (audio_buf.welcome_01_wav_audio_buf == NULL)
+                {
+                    err = malloc_welcome_to_tutor_fish_01();
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "malloc_welcome_to_tutor_fish_01() err: %s", esp_err_to_name(err));
+                    }
+
+                    if (err == ESP_OK)
+                    {
+                        playback_audio_file(audio_buf.welcome_01_wav_audio_buf, audio_buf.welcome_01_audio_len, audio_volume, false);
+                        if (err != ESP_OK)
+                        {
+                            ESP_LOGE(TAG, "playback_audio_file(welcome_01_wav_audio_buf) err: %s", esp_err_to_name(err));
+                        }
+
+                        free_welcome_to_tutor_fish_01();
+                    }
+                }
+
+                if (audio_buf.home_instructions_00_wav_audio_buf == NULL)
+                {
+                    err = malloc_home_instructions_00_wav();
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "malloc_home_instructions_00_wav() err: %s", esp_err_to_name(err));
+                    }
+
+                    if (err == ESP_OK)
+                    {
+                        playback_audio_file(audio_buf.home_instructions_00_wav_audio_buf, audio_buf.home_instructions_00_wav_audio_len, audio_volume, true);
+                        if (err != ESP_OK)
+                        {
+                            ESP_LOGE(TAG, "playback_audio_file(home_instructions_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                        }
+
+                        free_home_instructions_00();
+                    }
+                }
+
+                if (audio_buf.exit_this_app_00_wav_audio_buf == NULL)
+                {
+                    err = malloc_exit_this_app_00_wav();
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "malloc_home_instructions_00_wav() err: %s", esp_err_to_name(err));
+                    }
+
+                    if (err == ESP_OK)
+                    {
+                        playback_audio_file(audio_buf.exit_this_app_00_wav_audio_buf, audio_buf.exit_this_app_00_wav_audio_len, audio_volume, true);
+                        if (err != ESP_OK)
+                        {
+                            ESP_LOGE(TAG, "playback_audio_file(exit_this_app_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                        }
+
+                        free_exit_this_app_00();
+                    }
+                }
 
                 tutorfish_home_init = true;
                 tutorfish_submit_question_init = false;
@@ -1101,14 +1099,17 @@ void app_main(void)
 
                 set_blue_led(0);
 
-                err = stop_wifi();
-                if (err != ESP_OK)
+                if (wifi_bt_status.wifi_conn)
                 {
-                    ESP_LOGE(TAG, "stop_wifi() error: %s", esp_err_to_name(err));
-                }
-                else
-                {
-                    wifi_bt_status.wifi_conn = false;
+                    err = stop_wifi();
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "stop_wifi() error: %s", esp_err_to_name(err));
+                    }
+                    else
+                    {
+                        wifi_bt_status.wifi_conn = false;
+                    }
                 }
 
                 tutorfish_playback_answer_init = true;
@@ -1185,14 +1186,17 @@ void app_main(void)
 
             set_blue_led(0);
 
-            err = stop_wifi();
-            if (err != ESP_OK)
+            if (wifi_bt_status.wifi_conn)
             {
-                ESP_LOGE(TAG, "stop_wifi() error: %s", esp_err_to_name(err));
-            }
-            else
-            {
-                wifi_bt_status.wifi_conn = false;
+                err = stop_wifi();
+                if (err != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "stop_wifi() error: %s", esp_err_to_name(err));
+                }
+                else
+                {
+                    wifi_bt_status.wifi_conn = false;
+                }
             }
 
             vTaskDelay(100 / portTICK_PERIOD_MS);

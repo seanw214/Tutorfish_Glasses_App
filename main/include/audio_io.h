@@ -57,6 +57,9 @@ void free_tutors_found_answer_00_wav(void);
 esp_err_t malloc_tutors_look_for_answer_00_wav(void);
 void free_tutors_look_for_answer_00_wav(void);
 
+esp_err_t malloc_wait_app_loads_00_wav(void);
+void free_wait_app_loads_00_wav(void);
+
 typedef struct
 {
     // bool hfp_i2s_playing;
@@ -120,6 +123,10 @@ typedef struct
 
     int16_t *error_message_00_wav_audio_buf;
     int error_message_00_wav_audio_len;
+
+    int16_t *wait_app_loads_00_wav_audio_buf;
+    int wait_app_loads_00_wav_audio_len;
+    
 } audio_buf_t;
 
 extern audio_buf_t audio_buf;
