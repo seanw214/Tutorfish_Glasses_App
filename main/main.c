@@ -54,7 +54,7 @@ static uint8_t tts_download_attempts = 0;
 static const uint8_t validate_session_cookie_get_limit = 4;
 static uint8_t validate_session_cookie_get_attempts = 0;
 
-static bool enable_pic12 = true;
+static bool enable_pic12 = false;
 
 size_t http_status = 0;
 

@@ -695,6 +695,7 @@ esp_err_t play_submit_question_instructions(void)
 esp_err_t playback_audio_file(int16_t *audio_file_buf, int audio_file_len, float audio_volume, bool audio_playback_stoppable)
 {
     esp_err_t err;
+    int padding = 0;
 
     // wait until the previous audio file has completed
     while (audio_buf.system_i2s_playing)
@@ -703,7 +704,18 @@ esp_err_t playback_audio_file(int16_t *audio_file_buf, int audio_file_len, float
     }
 
     temp_buf = malloc(audio_file_len * sizeof(int16_t));
-    queued_audio_file_len = audio_file_len;
+
+    // pad short audio files
+    if (audio_file_len < 32024)
+    {
+        padding = 32024 - audio_file_len;
+        queued_audio_file_len = audio_file_len + padding;
+    }
+    else
+    {
+        queued_audio_file_len = audio_file_len;
+    }
+
     queued_audio_file_stoppable = audio_playback_stoppable;
 
     /*
@@ -738,8 +750,6 @@ esp_err_t playback_audio_file(int16_t *audio_file_buf, int audio_file_len, float
     audio_buf.system_i2s_playing = true;
     audio_buf.system_i2s_stop = false;
 
-    // vTaskDelay(500 / portTICK_PERIOD_MS);
-
     ESP_LOGI(TAG, "i2s_write() starting...");
 
     size_t bytes_written = 0;
@@ -749,6 +759,7 @@ esp_err_t playback_audio_file(int16_t *audio_file_buf, int audio_file_len, float
         ESP_LOGI(TAG, "i2s_write() err %s", esp_err_to_name(err));
         return err;
     }
+
     ESP_LOGI(TAG, "i2s_write() complete");
 
     return err;
