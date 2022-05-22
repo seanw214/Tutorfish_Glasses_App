@@ -9,7 +9,8 @@
 #include "driver/gpio.h"
 #include "esp_sleep.h"
 #include "http_request.h"
-#include "websocket.h"
+#include "esp_http_client_example.h"
+//#include "websocket.h"
 
 #include "nvs.h"
 #include "littlefs_helper.h"
@@ -74,7 +75,7 @@ esp_err_t get_new_session_cookie(void)
     strcat(post_data, json_obj_ending);
 
     // retreive session cookie for account access
-    size_t http_status = http_post_request("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/session-smartglasses-login", post_data, NULL);
+    size_t http_status = http_post_request_("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/session-smartglasses-login", post_data, false);
     if (http_status == 600)
     {
         // TODO : handle esp error
@@ -135,6 +136,12 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(err);
 
+    // err = erase_nvs_key("session_cookie");
+    // if (err != ESP_OK)
+    // {
+    //     ESP_LOGE(TAG, "erase_nvs_key() err: %s", esp_err_to_name(err));
+    // }
+
     err = write_nvs_email_pass("student@email.com", "!Password1");
     if (err != ESP_OK)
     {
@@ -176,14 +183,6 @@ void app_main(void)
     audio_volume = nvs_data.volume_lvl * 0.01f;
     ESP_LOGI(TAG, "audio_volume: %f", audio_volume);
 
-    /*
-    err = erase_nvs_key("jpg_exponent");
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "erase_nvs_key() err: %s", esp_err_to_name(err));
-    }
-    */
-
     err = read_nvs_int("jpg_exponent", &nvs_data.jpeg_quality_exponent);
     if (err != ESP_OK)
     {
@@ -220,6 +219,7 @@ void app_main(void)
         }
     }
 
+    nvs_data.jpeg_quality_exponent = 0; // remove in production
     ESP_LOGI(TAG, "jpg_exponent: %d", nvs_data.jpeg_quality_exponent);
     ESP_LOGI(TAG, "attempt_pic: %d", nvs_data.attempting_pic_capture);
 
@@ -283,7 +283,13 @@ void app_main(void)
         ESP_LOGE(TAG, "init_blue_led() err: %s", esp_err_to_name(err));
     }
 
+    // convert to float
+    audio_volume = 0.8f;
+
     state_machine = TUTORFISH_HOME;
+
+    // vTaskDelay(1000 / portTICK_PERIOD_MS);
+    // state_machine = CONNECT_TO_WIFI;
 
     while (true)
     {
@@ -498,6 +504,7 @@ void app_main(void)
                     }
                 }
 
+                /*
                 if (audio_buf.home_instructions_00_wav_audio_buf == NULL)
                 {
                     err = malloc_home_instructions_00_wav();
@@ -538,6 +545,8 @@ void app_main(void)
                     }
                 }
 
+                */
+
                 tutorfish_home_init = true;
                 tutorfish_submit_question_init = false;
             }
@@ -549,7 +558,7 @@ void app_main(void)
             {
                 ESP_LOGI(TAG, "TUTORFISH_SUBMIT_QUESTION");
 
-                play_submit_question_instructions();
+                // play_submit_question_instructions();
 
                 tutorfish_submit_question_init = true;
 
@@ -597,7 +606,7 @@ void app_main(void)
                     pic = esp_camera_fb_get();
                     if (pic != NULL)
                     {
-                        if (pic->len > 0 && pic_taken_increment++ >= 1)
+                        if (pic->len > 0 && pic_taken_increment++ >= 2)
                         {
                             ESP_LOGI(TAG, "Picture taken! Its size is: %zu bytes", pic->len);
                             pic_taken = true;
@@ -739,10 +748,11 @@ void app_main(void)
             break;
         case TUTORFISH_VALIDATE_SESSION:
             // check if the session is valid
+
             if (validate_session_cookie_get_attempts++ <= validate_session_cookie_get_limit)
             {
                 ESP_LOGI(TAG, "Checking session validity...");
-                http_status = http_get_request("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/validate-session", NULL, true);
+                http_status = http_get_request_("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/validate-session", NULL, true);
                 // Ok: session cookie valid
                 if (http_status == 200)
                 {
@@ -789,6 +799,8 @@ void app_main(void)
                 validate_session_cookie_get_attempts = 0;
                 state_machine = TUTORFISH_HOME;
             }
+
+            state_machine = TUTORFISH_HOME;
             break;
         case TUTORFISH_CAPTURE_PIC: //; // ; fixes random err
 
@@ -859,6 +871,36 @@ void app_main(void)
 
             printf("db_poll_attempts: %d\n", db_poll_attempts);
 
+            // break out if the wifi loses connection
+            if (!wifi_bt_status.wifi_conn)
+            {
+                // playback error message
+                if (audio_buf.error_message_00_wav_audio_buf == NULL)
+                {
+                    err = malloc_error_message_00_wav();
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "malloc_error_message_00_wav() err: %s", esp_err_to_name(err));
+                    }
+
+                    if (err == ESP_OK)
+                    {
+                        err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, audio_volume, false);
+                        if (err != ESP_OK)
+                        {
+                            ESP_LOGE(TAG, "playback_audio_file(error_message_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                        }
+
+                        free_error_message_00_wav();
+                    }
+                }
+
+                // db_poll_attempts has reach its limit
+                db_poll_attempts = 0;
+                state_machine = TUTORFISH_SUBMIT_QUESTION_COMPLETE;
+                break;
+            }
+
             if (db_poll_attempts++ <= db_poll_limit)
             {
                 // should never happen but just in case
@@ -889,6 +931,9 @@ void app_main(void)
                     state_machine = TUTORFISH_SUBMIT_QUESTION_COMPLETE;
                     break;
                 }
+
+                // wait until the question status has changed
+                vTaskDelay(30000 / portTICK_PERIOD_MS);
 
                 http_status = http_get_request("tutorfish-env.eba-tdamw63n.us-east-1.elasticbeanstalk.com", "/student-question-status", "documentId", true);
                 if (http_status == 200)
@@ -979,6 +1024,9 @@ void app_main(void)
                         memset(nvs_data.question_ttsKey, 0, 255);
                         strcpy(nvs_data.question_ttsKey, nvs_data.question_status);
 
+                        // reset question_status
+                        memset(nvs_data.question_status, 0, 255);
+
                         db_poll_attempts = 0;
                         state_machine = TUTORFISH_DOWNLOAD_TTS;
                         break;
@@ -994,9 +1042,6 @@ void app_main(void)
                         break;
                     }
                 }
-
-                // wait until the question status has changed
-                vTaskDelay(30000 / portTICK_PERIOD_MS);
             }
             else
             {
@@ -1037,6 +1082,36 @@ void app_main(void)
         case TUTORFISH_DOWNLOAD_TTS:
 
             ESP_LOGI(TAG, "downloading the tts from the db link. attempt #%d", tts_download_attempts);
+
+            // break out if the wifi loses connection
+            if (!wifi_bt_status.wifi_conn)
+            {
+                // playback error message
+                if (audio_buf.error_message_00_wav_audio_buf == NULL)
+                {
+                    err = malloc_error_message_00_wav();
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "malloc_error_message_00_wav() err: %s", esp_err_to_name(err));
+                    }
+
+                    if (err == ESP_OK)
+                    {
+                        err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, audio_volume, false);
+                        if (err != ESP_OK)
+                        {
+                            ESP_LOGE(TAG, "playback_audio_file(error_message_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                        }
+
+                        free_error_message_00_wav();
+                    }
+                }
+
+                // db_poll_attempts has reach its limit
+                tts_download_attempts = 0;
+                state_machine = TUTORFISH_SUBMIT_QUESTION_COMPLETE;
+                break;
+            }
 
             if (tts_download_attempts++ <= tts_download_limit)
             {

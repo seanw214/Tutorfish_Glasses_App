@@ -13,10 +13,11 @@
 
 #define BOARD_WROVER_KIT 1
 
+/*
 // WROVER-KIT PIN Map
 #ifdef BOARD_WROVER_KIT
 
-#define CAM_PIN_PWDN 23 //-1
+#define CAM_PIN_PWDN 23
 #define CAM_PIN_RESET -1
 #define CAM_PIN_XCLK 22
 #define CAM_PIN_SIOD 26
@@ -34,6 +35,31 @@
 #define CAM_PIN_VSYNC 25
 #define CAM_PIN_HREF 4
 #define CAM_PIN_PCLK 32
+
+#endif
+*/
+
+// WROVER-KIT PIN Map
+#ifdef BOARD_WROVER_KIT
+
+#define CAM_PIN_PWDN 23     // GPIO23
+#define CAM_PIN_RESET -1    
+#define CAM_PIN_XCLK 22     // GPIO22
+#define CAM_PIN_SIOD 26     // GPIO26
+#define CAM_PIN_SIOC 27     // GPIO27
+
+#define Y9_GPIO_NUM 14      // MTMS
+#define Y8_GPIO_NUM 34      // VDET_1
+#define Y7_GPIO_NUM 39      // SENSOR_VN
+#define Y6_GPIO_NUM 38      // SENSOR_CAPN
+#define Y5_GPIO_NUM 33      // 32K_XN
+#define Y4_GPIO_NUM 21      // GPIO21
+#define Y3_GPIO_NUM 13      // MTCK
+#define Y2_GPIO_NUM 15      // MTDO
+
+#define CAM_PIN_VSYNC 25    // GPIO25
+#define CAM_PIN_HREF 4      // GPIO4
+#define CAM_PIN_PCLK 32     // 32K_XP
 
 #endif
 
@@ -68,8 +94,12 @@ static const char *TAG = "camera.c";
 
 camera_config_t setup_camera_config(void)
 {
-    const uint8_t base_jpg_quality = 6;
+    const uint8_t base_jpg_quality = 6; //6
     uint8_t jpg_quality = base_jpg_quality;
+
+    // base_jpg_quality = 3; FRAMESIZE_QXGA works (little difference), daytime
+    // base_jpg_quality = 4; FRAMESIZE_QXGA works, daytime
+    // base_jpg_quality = 4; FRAMESIZE_WQXGA works, daytime (image is noisy and the difference is not great between FRAMESIZE_QXGA)
 
     if (nvs_data.jpeg_quality_exponent > 0 && nvs_data.jpeg_quality_exponent < 6)
     {
@@ -120,7 +150,7 @@ camera_config_t setup_camera_config(void)
         .ledc_channel = LEDC_CHANNEL_0,
 
         .pixel_format = PIXFORMAT_JPEG, // YUV422,GRAYSCALE,RGB565,JPEG,PIXFORMAT_RGB565
-        .frame_size = FRAMESIZE_UXGA,   
+        .frame_size = FRAMESIZE_WQXGA, // FRAMESIZE_UXGA, FRAMESIZE_QXGA
         .jpeg_quality = jpg_quality,    // 0-63 lower number means higher quality
 
         .fb_count = 1, // if more than one, i2s runs in continuous mode. Use only with JPEG

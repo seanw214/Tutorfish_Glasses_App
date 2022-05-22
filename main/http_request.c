@@ -56,7 +56,7 @@ static char *img_buf = NULL;
 static char *session_buf = NULL;
 static char *response_buffer = NULL;
 
-char local_response_buffer[MAX_HTTP_OUTPUT_BUFFER] = {0};
+char local_response_buffer_[MAX_HTTP_OUTPUT_BUFFER] = {0};
 
 esp_err_t _http_event_handler(esp_http_client_event_t *evt)
 {
@@ -144,13 +144,13 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt)
 int http_download_file(char *hostname, char *path, char *query, bool cookie)
 {
     esp_http_client_config_t config = {
-            .host = hostname,
-            .path = path,
-            .event_handler = _http_event_handler,
-            .disable_auto_redirect = true,
-            .user_agent = "SmartGlassesOS/1.0.0",
-            .buffer_size_tx = 2048 // fix HTTP_HEADER: Buffer length is small to fit all the headers error. https://www.reddit.com/r/esp32/comments/krwajq/esp32_http_post_fails_when_using_a_long_header/
-        };
+        .host = hostname,
+        .path = path,
+        .event_handler = _http_event_handler,
+        .disable_auto_redirect = true,
+        .user_agent = "SmartGlassesOS/1.0.0",
+        .buffer_size_tx = 2048 // fix HTTP_HEADER: Buffer length is small to fit all the headers error. https://www.reddit.com/r/esp32/comments/krwajq/esp32_http_post_fails_when_using_a_long_header/
+    };
 
     // check if the GET request has a query
     char query_[1024] = "";
@@ -282,14 +282,14 @@ int http_download_file(char *hostname, char *path, char *query, bool cookie)
 size_t http_get_request(char *hostname, char *path, char *query, bool cookie)
 {
 
-    // char *local_response_buffer = malloc(MAX_HTTP_OUTPUT_BUFFER);
-    // memset(local_response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER);
+    // char *local_response_buffer_ = malloc(MAX_HTTP_OUTPUT_BUFFER);
+    // memset(local_response_buffer_, 0, MAX_HTTP_OUTPUT_BUFFER);
 
     esp_http_client_config_t config = {
         .host = hostname,
         .path = path,
         .event_handler = _http_event_handler,
-        .user_data = local_response_buffer, // Pass address of local buffer to get response
+        .user_data = local_response_buffer_, // Pass address of local buffer to get response
         .disable_auto_redirect = true,
         .user_agent = "SmartGlassesOS/1.0.0",
         .buffer_size_tx = 2048 // fix HTTP_HEADER: Buffer length is small to fit all the headers error. https://www.reddit.com/r/esp32/comments/krwajq/esp32_http_post_fails_when_using_a_long_header/
@@ -336,30 +336,30 @@ size_t http_get_request(char *hostname, char *path, char *query, bool cookie)
         // if the http request was successful, add new session cookie to nvs
         if (http_status == HttpStatus_Ok && strcmp(path, "/student-question-status") == 0)
         {
-            ESP_LOGI(TAG, "local_response_buffer: %s", local_response_buffer);
+            ESP_LOGI(TAG, "local_response_buffer_: %s", local_response_buffer_);
 
             // BUG FIX: local_reponse_buffer retains previous request data
-            if (strstr(local_response_buffer, "unanswered"))
+            if (strstr(local_response_buffer_, "unanswered"))
             {
                 length = strlen("unanswered");
             }
-            else if (strstr(local_response_buffer, "pending"))
+            else if (strstr(local_response_buffer_, "pending"))
             {
                 length = strlen("pending");
             }
-            else if (strstr(local_response_buffer, "answered"))
+            else if (strstr(local_response_buffer_, "answered"))
             {
                 length = strlen("answered");
             }
-            else if (strstr(local_response_buffer, "issue"))
+            else if (strstr(local_response_buffer_, "issue"))
             {
                 length = strlen("issue");
             }
-            else if (strstr(local_response_buffer, "expired"))
+            else if (strstr(local_response_buffer_, "expired"))
             {
                 length = strlen("expired");
             }
-            else if (strstr(local_response_buffer, "canceled"))
+            else if (strstr(local_response_buffer_, "canceled"))
             {
                 length = strlen("canceled");
             }
@@ -379,7 +379,7 @@ size_t http_get_request(char *hostname, char *path, char *query, bool cookie)
 
             }
             memset(nvs_data.question_status, 0, nvs_data.question_status_len);
-            strncpy(nvs_data.question_status, local_response_buffer, nvs_data.question_status_len);
+            strncpy(nvs_data.question_status, local_response_buffer_, nvs_data.question_status_len);
         }
     }
     else
@@ -414,7 +414,8 @@ size_t http_get_request(char *hostname, char *path, char *query, bool cookie)
         .disable_auto_redirect = true,
         .user_agent = "SmartGlassesOS/1.0.0",
         .buffer_size_tx = 2048, // fix HTTP_HEADER: Buffer length is small to fit all the headers error. https://www.reddit.com/r/esp32/comments/krwajq/esp32_http_post_fails_when_using_a_long_header/
-        .buffer_size = 2048};
+        .buffer_size = 2048
+    };
 
     // check if the GET request has a query
     char query_[1024] = "";
@@ -435,7 +436,7 @@ size_t http_get_request(char *hostname, char *path, char *query, bool cookie)
         if (strcmp(query, "documentId") == 0)
         {
             const char *documentId = "documentId=";
-            //const char *documentId = "documentId=w2EKdfqufgjNO0IU8SZS"; // NOTE: remove when NOT testing
+            // const char *documentId = "documentId=w2EKdfqufgjNO0IU8SZS"; // NOTE: remove when NOT testing
             strcat(query_, documentId);
             strncat(query_, nvs_data.documentId, nvs_data.documentId_len);
         }
@@ -493,7 +494,7 @@ size_t http_post_request(char *hostname, char *path, char *post_data, char *sess
         .host = hostname,
         .path = path,
         .event_handler = _http_event_handler,
-        .user_data = local_response_buffer,
+        .user_data = local_response_buffer_,
         .disable_auto_redirect = true,
         .user_agent = "SmartGlassesOS/1.0.0",
         .buffer_size_tx = 2048 // fix HTTP_HEADER: Buffer length is small to fit all the headers error. https://www.reddit.com/r/esp32/comments/krwajq/esp32_http_post_fails_when_using_a_long_header/
@@ -521,13 +522,15 @@ size_t http_post_request(char *hostname, char *path, char *post_data, char *sess
     if (err == ESP_OK)
     {
 
+        ESP_LOGI(TAG, "local_response_buffer_: %s", local_response_buffer_);
+
         ESP_LOGI(TAG, "HTTP POST Status = %d, content_length = %d", http_status, length);
 
         // if the http request was successful, add new session cookie to nvs
         if (http_status == HttpStatus_Ok && strcmp(path, "/session-smartglasses-login") == 0)
         {
             // BUG FIX: local_reponse_buffer retains previous request data
-            if (strstr(local_response_buffer, "Bad Request"))
+            if (strstr(local_response_buffer_, "Bad Request"))
             {
                 const int bad_request_len = strlen("Bad Request");
                 int ii = 0;
@@ -537,11 +540,11 @@ size_t http_post_request(char *hostname, char *path, char *post_data, char *sess
                 {
                     if (i >= bad_request_len)
                     {
-                        session_buf[ii++] = local_response_buffer[i];
+                        session_buf[ii++] = local_response_buffer_[i];
                     }
                 }
             }
-            else if (strstr(local_response_buffer, "Unauthorized"))
+            else if (strstr(local_response_buffer_, "Unauthorized"))
             {
                 const int unauthorized_len = strlen("Unauthorized");
                 int ii = 0;
@@ -551,7 +554,7 @@ size_t http_post_request(char *hostname, char *path, char *post_data, char *sess
                 {
                     if (i >= unauthorized_len)
                     {
-                        session_buf[ii++] = local_response_buffer[i];
+                        session_buf[ii++] = local_response_buffer_[i];
                     }
                 }
             }
@@ -559,49 +562,53 @@ size_t http_post_request(char *hostname, char *path, char *post_data, char *sess
             {
                 session_buf = malloc(length);
                 memset(session_buf, 0, length);
-                strcpy(session_buf, local_response_buffer);
-            }
 
-            nvs_handle_t nvs_handle;
+                char session[900] = "session=eyJhbGciOiJSUzI1NiIsImtpZCI6InRCME0yQSJ9.eyJpc3MiOiJodHRwczovL3Nlc3Npb24uZmlyZWJhc2UuZ29vZ2xlLmNvbS9hLXBsdXMtZmlyZWJhc2UiLCJhdWQiOiJhLXBsdXMtZmlyZWJhc2UiLCJhdXRoX3RpbWUiOjE2NTMwNzI4NjYsInVzZXJfaWQiOiIxeTlJMHMwSGhFUmwxcGFzSjFTQnIzT0N4aGUyIiwic3ViIjoiMXk5STBzMEhoRVJsMXBhc0oxU0JyM09DeGhlMiIsImlhdCI6MTY1MzA3Mjg2NiwiZXhwIjoxNjU0MjgyNDY2LCJlbWFpbCI6InN0dWRlbnRAZW1haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJmaXJlYmFzZSI6eyJpZGVudGl0aWVzIjp7ImVtYWlsIjpbInN0dWRlbnRAZW1haWwuY29tIl19LCJzaWduX2luX3Byb3ZpZGVyIjoicGFzc3dvcmQifX0.mBSgtykmjgX6lSRJ-pSKSS3CErlIFS9UHSoi5-3fC198rwPRYwvbncZ-sq8AK0ldghr_Lv231Dz8S7FfHgwiDmL7BrCkH4lMJW2-TQR1fGGBRiZ6eIFamMXoCPvfE817CmM78LxVETtpGe9L19m429TESSnn3ngfHY4ObO0LEhqvXtz1EppBNP2FxcSfLRUIC_BXdArqn7KQU2jhC2Kj9oNrAHFm4kUfYVkMQiYY249ACK3InYroYL24gEZZOxE3kx02OYQ9A-D3GjwR0FGhy66SX7_pO4bo9rbsT7peCnQHx8Dc5oIsc1U4cCuBCJlSB8esHK06KwV8XI1efgxZ-w;";
+                strcpy(session_buf, local_response_buffer_);
 
-            err = nvs_open("nvs", NVS_READWRITE, &nvs_handle);
-            if (err != ESP_OK)
-            {
-                ESP_LOGE(TAG, "nvs_open err: %s", esp_err_to_name(err));
-            }
+                ESP_LOGI(TAG, "session_buf: %s", session_buf);
 
-            // nvs read id_token
-            err = nvs_set_blob(nvs_handle, "session_cookie", session_buf, length);
-            if (err != ESP_OK)
-            {
-                ESP_LOGE(TAG, "add_blob_to_nvs() nvs_set_blob() err: %s", esp_err_to_name(err));
-            }
+                nvs_handle_t nvs_handle;
 
-            nvs_commit(nvs_handle);
-            if (err != ESP_OK)
-            {
-                ESP_LOGE(TAG, "add_blob_to_nvs() nvs_commit() err: %s", esp_err_to_name(err));
-            }
-
-            nvs_close(nvs_handle);
-
-            // if the nvs write succeeded, add data to nvs_data struct
-            if (err == ESP_OK)
-            {
-                // during session cookie refresh, check the data of the nvs_data.session_cookie struct
-                if (nvs_data.session_cookie == NULL)
+                err = nvs_open("nvs", NVS_READWRITE, &nvs_handle);
+                if (err != ESP_OK)
                 {
-                    nvs_data.session_cookie = malloc(length);
-                }
-                else
-                {
-                    free(nvs_data.session_cookie);
-                    nvs_data.session_cookie = NULL;
-                    nvs_data.session_cookie = malloc(length);
+                    ESP_LOGE(TAG, "nvs_open err: %s", esp_err_to_name(err));
                 }
 
-                nvs_data.session_cookie_len = length;
-                strncpy(nvs_data.session_cookie, session_buf, length);
+                // nvs read id_token
+                err = nvs_set_blob(nvs_handle, "session_cookie", session_buf, length);
+                if (err != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "add_blob_to_nvs() nvs_set_blob() err: %s", esp_err_to_name(err));
+                }
+
+                nvs_commit(nvs_handle);
+                if (err != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "add_blob_to_nvs() nvs_commit() err: %s", esp_err_to_name(err));
+                }
+
+                nvs_close(nvs_handle);
+
+                // if the nvs write succeeded, add data to nvs_data struct
+                if (err == ESP_OK)
+                {
+                    // during session cookie refresh, check the data of the nvs_data.session_cookie struct
+                    if (nvs_data.session_cookie == NULL)
+                    {
+                        nvs_data.session_cookie = malloc(length);
+                    }
+                    else
+                    {
+                        free(nvs_data.session_cookie);
+                        nvs_data.session_cookie = NULL;
+                        nvs_data.session_cookie = malloc(length);
+                    }
+
+                    nvs_data.session_cookie_len = length;
+                    strncpy(nvs_data.session_cookie, session_buf, length);
+                }
             }
 
             free(session_buf);
@@ -611,10 +618,10 @@ size_t http_post_request(char *hostname, char *path, char *post_data, char *sess
         // handle POST /signup/signout_glasses data
         if (http_status == HttpStatus_Ok && strcmp(path, "/signup/signout_glasses") == 0)
         {
-            printf("/signup/signout_glasses POST 200 local_response_buffer:\n");
+            printf("/signup/signout_glasses POST 200 local_response_buffer_:\n");
             for (int i = 0; i < length; i++)
             {
-                printf("%c", local_response_buffer[i]);
+                printf("%c", local_response_buffer_[i]);
             }
             printf("\n");
         }
@@ -630,8 +637,8 @@ size_t http_post_request(char *hostname, char *path, char *post_data, char *sess
         http_status == HttpStatus_Unauthorized ? http_status = HttpStatus_Unauthorized : http_status == 600;
     }
 
-    // free(post_local_response_buffer);
-    // post_local_response_buffer = NULL;
+    // free(local_response_buffer_);
+    // local_response_buffer_ = NULL;
 
     esp_http_client_cleanup(client);
 

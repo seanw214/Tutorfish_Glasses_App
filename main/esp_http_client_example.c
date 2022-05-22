@@ -20,6 +20,7 @@
 #include "esp_tls.h"
 
 #include "esp_http_client.h"
+#include "nvs_data_struct.h"
 
 #define MAX_HTTP_RECV_BUFFER 512
 #define MAX_HTTP_OUTPUT_BUFFER 2048
@@ -36,74 +37,84 @@ static const char *TAG = "HTTP_CLIENT";
    in the component.mk COMPONENT_EMBED_TXTFILES variable.
 */
 extern const char howsmyssl_com_root_cert_pem_start[] asm("_binary_howsmyssl_com_root_cert_pem_start");
-extern const char howsmyssl_com_root_cert_pem_end[]   asm("_binary_howsmyssl_com_root_cert_pem_end");
+extern const char howsmyssl_com_root_cert_pem_end[] asm("_binary_howsmyssl_com_root_cert_pem_end");
 
-esp_err_t _http_event_handler(esp_http_client_event_t *evt)
+esp_err_t _http_event_handler_(esp_http_client_event_t *evt)
 {
-    static char *output_buffer;  // Buffer to store response of http request from event handler
-    static int output_len;       // Stores number of bytes read
-    switch(evt->event_id) {
-        case HTTP_EVENT_ERROR:
-            ESP_LOGD(TAG, "HTTP_EVENT_ERROR");
-            break;
-        case HTTP_EVENT_ON_CONNECTED:
-            ESP_LOGD(TAG, "HTTP_EVENT_ON_CONNECTED");
-            break;
-        case HTTP_EVENT_HEADER_SENT:
-            ESP_LOGD(TAG, "HTTP_EVENT_HEADER_SENT");
-            break;
-        case HTTP_EVENT_ON_HEADER:
-            ESP_LOGD(TAG, "HTTP_EVENT_ON_HEADER, key=%s, value=%s", evt->header_key, evt->header_value);
-            break;
-        case HTTP_EVENT_ON_DATA:
-            ESP_LOGD(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
-            /*
-             *  Check for chunked encoding is added as the URL for chunked encoding used in this example returns binary data.
-             *  However, event handler can also be used in case chunked encoding is used.
-             */
-            if (!esp_http_client_is_chunked_response(evt->client)) {
-                // If user_data buffer is configured, copy the response into the buffer
-                if (evt->user_data) {
-                    memcpy(evt->user_data + output_len, evt->data, evt->data_len);
-                } else {
-                    if (output_buffer == NULL) {
-                        output_buffer = (char *) malloc(esp_http_client_get_content_length(evt->client));
-                        output_len = 0;
-                        if (output_buffer == NULL) {
-                            ESP_LOGE(TAG, "Failed to allocate memory for output buffer");
-                            return ESP_FAIL;
-                        }
-                    }
-                    memcpy(output_buffer + output_len, evt->data, evt->data_len);
-                }
-                output_len += evt->data_len;
+    static char *output_buffer; // Buffer to store response of http request from event handler
+    static int output_len;      // Stores number of bytes read
+    switch (evt->event_id)
+    {
+    case HTTP_EVENT_ERROR:
+        ESP_LOGD(TAG, "HTTP_EVENT_ERROR");
+        break;
+    case HTTP_EVENT_ON_CONNECTED:
+        ESP_LOGD(TAG, "HTTP_EVENT_ON_CONNECTED");
+        break;
+    case HTTP_EVENT_HEADER_SENT:
+        ESP_LOGD(TAG, "HTTP_EVENT_HEADER_SENT");
+        break;
+    case HTTP_EVENT_ON_HEADER:
+        ESP_LOGD(TAG, "HTTP_EVENT_ON_HEADER, key=%s, value=%s", evt->header_key, evt->header_value);
+        break;
+    case HTTP_EVENT_ON_DATA:
+        ESP_LOGD(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
+        /*
+         *  Check for chunked encoding is added as the URL for chunked encoding used in this example returns binary data.
+         *  However, event handler can also be used in case chunked encoding is used.
+         */
+        if (!esp_http_client_is_chunked_response(evt->client))
+        {
+            // If user_data buffer is configured, copy the response into the buffer
+            if (evt->user_data)
+            {
+                memcpy(evt->user_data + output_len, evt->data, evt->data_len);
             }
+            else
+            {
+                if (output_buffer == NULL)
+                {
+                    output_buffer = (char *)malloc(esp_http_client_get_content_length(evt->client));
+                    output_len = 0;
+                    if (output_buffer == NULL)
+                    {
+                        ESP_LOGE(TAG, "Failed to allocate memory for output buffer");
+                        return ESP_FAIL;
+                    }
+                }
+                memcpy(output_buffer + output_len, evt->data, evt->data_len);
+            }
+            output_len += evt->data_len;
+        }
 
-            break;
-        case HTTP_EVENT_ON_FINISH:
-            ESP_LOGD(TAG, "HTTP_EVENT_ON_FINISH");
-            if (output_buffer != NULL) {
-                // Response is accumulated in output_buffer. Uncomment the below line to print the accumulated response
-                // ESP_LOG_BUFFER_HEX(TAG, output_buffer, output_len);
+        break;
+    case HTTP_EVENT_ON_FINISH:
+        ESP_LOGD(TAG, "HTTP_EVENT_ON_FINISH");
+        if (output_buffer != NULL)
+        {
+            // Response is accumulated in output_buffer. Uncomment the below line to print the accumulated response
+            // ESP_LOG_BUFFER_HEX(TAG, output_buffer, output_len);
+            free(output_buffer);
+            output_buffer = NULL;
+        }
+        output_len = 0;
+        break;
+    case HTTP_EVENT_DISCONNECTED:
+        ESP_LOGI(TAG, "HTTP_EVENT_DISCONNECTED");
+        int mbedtls_err = 0;
+        esp_err_t err = esp_tls_get_and_clear_last_error(evt->data, &mbedtls_err, NULL);
+        if (err != 0)
+        {
+            if (output_buffer != NULL)
+            {
                 free(output_buffer);
                 output_buffer = NULL;
             }
             output_len = 0;
-            break;
-        case HTTP_EVENT_DISCONNECTED:
-            ESP_LOGI(TAG, "HTTP_EVENT_DISCONNECTED");
-            int mbedtls_err = 0;
-            esp_err_t err = esp_tls_get_and_clear_last_error(evt->data, &mbedtls_err, NULL);
-            if (err != 0) {
-                if (output_buffer != NULL) {
-                    free(output_buffer);
-                    output_buffer = NULL;
-                }
-                output_len = 0;
-                ESP_LOGI(TAG, "Last esp error code: 0x%x", err);
-                ESP_LOGI(TAG, "Last mbedtls failure: 0x%x", mbedtls_err);
-            }
-            break;
+            ESP_LOGI(TAG, "Last esp error code: 0x%x", err);
+            ESP_LOGI(TAG, "Last mbedtls failure: 0x%x", mbedtls_err);
+        }
+        break;
     }
     return ESP_OK;
 }
@@ -122,19 +133,22 @@ static void http_rest_with_url(void)
         .host = "httpbin.org",
         .path = "/get",
         .query = "esp",
-        .event_handler = _http_event_handler,
-        .user_data = local_response_buffer,        // Pass address of local buffer to get response
+        .event_handler = _http_event_handler_,
+        .user_data = local_response_buffer, // Pass address of local buffer to get response
         .disable_auto_redirect = true,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
 
     // GET
     esp_err_t err = esp_http_client_perform(client);
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
     }
     ESP_LOG_BUFFER_HEX(TAG, local_response_buffer, strlen(local_response_buffer));
@@ -146,60 +160,75 @@ static void http_rest_with_url(void)
     esp_http_client_set_header(client, "Content-Type", "application/json");
     esp_http_client_set_post_field(client, post_data, strlen(post_data));
     err = esp_http_client_perform(client);
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTP POST Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "HTTP POST request failed: %s", esp_err_to_name(err));
     }
 
-    //PUT
+    // PUT
     esp_http_client_set_url(client, "http://httpbin.org/put");
     esp_http_client_set_method(client, HTTP_METHOD_PUT);
     err = esp_http_client_perform(client);
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTP PUT Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "HTTP PUT request failed: %s", esp_err_to_name(err));
     }
 
-    //PATCH
+    // PATCH
     esp_http_client_set_url(client, "http://httpbin.org/patch");
     esp_http_client_set_method(client, HTTP_METHOD_PATCH);
     esp_http_client_set_post_field(client, NULL, 0);
     err = esp_http_client_perform(client);
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTP PATCH Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "HTTP PATCH request failed: %s", esp_err_to_name(err));
     }
 
-    //DELETE
+    // DELETE
     esp_http_client_set_url(client, "http://httpbin.org/delete");
     esp_http_client_set_method(client, HTTP_METHOD_DELETE);
     err = esp_http_client_perform(client);
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTP DELETE Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "HTTP DELETE request failed: %s", esp_err_to_name(err));
     }
 
-    //HEAD
+    // HEAD
     esp_http_client_set_url(client, "http://httpbin.org/get");
     esp_http_client_set_method(client, HTTP_METHOD_HEAD);
     err = esp_http_client_perform(client);
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTP HEAD Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "HTTP HEAD request failed: %s", esp_err_to_name(err));
     }
 
@@ -212,17 +241,20 @@ static void http_rest_with_hostname_path(void)
         .host = "httpbin.org",
         .path = "/get",
         .transport_type = HTTP_TRANSPORT_OVER_TCP,
-        .event_handler = _http_event_handler,
+        .event_handler = _http_event_handler_,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
 
     // GET
     esp_err_t err = esp_http_client_perform(client);
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
     }
 
@@ -232,60 +264,75 @@ static void http_rest_with_hostname_path(void)
     esp_http_client_set_method(client, HTTP_METHOD_POST);
     esp_http_client_set_post_field(client, post_data, strlen(post_data));
     err = esp_http_client_perform(client);
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTP POST Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "HTTP POST request failed: %s", esp_err_to_name(err));
     }
 
-    //PUT
+    // PUT
     esp_http_client_set_url(client, "/put");
     esp_http_client_set_method(client, HTTP_METHOD_PUT);
     err = esp_http_client_perform(client);
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTP PUT Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "HTTP PUT request failed: %s", esp_err_to_name(err));
     }
 
-    //PATCH
+    // PATCH
     esp_http_client_set_url(client, "/patch");
     esp_http_client_set_method(client, HTTP_METHOD_PATCH);
     esp_http_client_set_post_field(client, NULL, 0);
     err = esp_http_client_perform(client);
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTP PATCH Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "HTTP PATCH request failed: %s", esp_err_to_name(err));
     }
 
-    //DELETE
+    // DELETE
     esp_http_client_set_url(client, "/delete");
     esp_http_client_set_method(client, HTTP_METHOD_DELETE);
     err = esp_http_client_perform(client);
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTP DELETE Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "HTTP DELETE request failed: %s", esp_err_to_name(err));
     }
 
-    //HEAD
+    // HEAD
     esp_http_client_set_url(client, "/get");
     esp_http_client_set_method(client, HTTP_METHOD_HEAD);
     err = esp_http_client_perform(client);
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTP HEAD Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "HTTP HEAD request failed: %s", esp_err_to_name(err));
     }
 
@@ -304,18 +351,21 @@ static void http_auth_basic(void)
      */
     esp_http_client_config_t config = {
         .url = "http://user:passwd@httpbin.org/basic-auth/user/passwd",
-        .event_handler = _http_event_handler,
+        .event_handler = _http_event_handler_,
         .auth_type = HTTP_AUTH_TYPE_BASIC,
         .max_authorization_retries = -1,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_err_t err = esp_http_client_perform(client);
 
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTP Basic Auth Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "Error perform http request %s", esp_err_to_name(err));
     }
     esp_http_client_cleanup(client);
@@ -325,16 +375,19 @@ static void http_auth_basic_redirect(void)
 {
     esp_http_client_config_t config = {
         .url = "http://user:passwd@httpbin.org/basic-auth/user/passwd",
-        .event_handler = _http_event_handler,
+        .event_handler = _http_event_handler_,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_err_t err = esp_http_client_perform(client);
 
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTP Basic Auth redirect Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "Error perform http request %s", esp_err_to_name(err));
     }
     esp_http_client_cleanup(client);
@@ -345,16 +398,19 @@ static void http_auth_digest(void)
 {
     esp_http_client_config_t config = {
         .url = "http://user:passwd@httpbin.org/digest-auth/auth/user/passwd/MD5/never",
-        .event_handler = _http_event_handler,
+        .event_handler = _http_event_handler_,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_err_t err = esp_http_client_perform(client);
 
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTP Digest Auth Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "Error perform http request %s", esp_err_to_name(err));
     }
     esp_http_client_cleanup(client);
@@ -364,17 +420,20 @@ static void https_with_url(void)
 {
     esp_http_client_config_t config = {
         .url = "https://www.howsmyssl.com",
-        .event_handler = _http_event_handler,
+        .event_handler = _http_event_handler_,
         .cert_pem = howsmyssl_com_root_cert_pem_start,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_err_t err = esp_http_client_perform(client);
 
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTPS Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "Error perform http request %s", esp_err_to_name(err));
     }
     esp_http_client_cleanup(client);
@@ -386,17 +445,20 @@ static void https_with_hostname_path(void)
         .host = "www.howsmyssl.com",
         .path = "/",
         .transport_type = HTTP_TRANSPORT_OVER_SSL,
-        .event_handler = _http_event_handler,
+        .event_handler = _http_event_handler_,
         .cert_pem = howsmyssl_com_root_cert_pem_start,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_err_t err = esp_http_client_perform(client);
 
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTPS Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "Error perform http request %s", esp_err_to_name(err));
     }
     esp_http_client_cleanup(client);
@@ -406,16 +468,19 @@ static void http_relative_redirect(void)
 {
     esp_http_client_config_t config = {
         .url = "http://httpbin.org/relative-redirect/3",
-        .event_handler = _http_event_handler,
+        .event_handler = _http_event_handler_,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_err_t err = esp_http_client_perform(client);
 
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTP Relative path redirect Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "Error perform http request %s", esp_err_to_name(err));
     }
     esp_http_client_cleanup(client);
@@ -425,16 +490,19 @@ static void http_absolute_redirect(void)
 {
     esp_http_client_config_t config = {
         .url = "http://httpbin.org/absolute-redirect/3",
-        .event_handler = _http_event_handler,
+        .event_handler = _http_event_handler_,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_err_t err = esp_http_client_perform(client);
 
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTP Absolute path redirect Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "Error perform http request %s", esp_err_to_name(err));
     }
     esp_http_client_cleanup(client);
@@ -444,36 +512,41 @@ static void http_redirect_to_https(void)
 {
     esp_http_client_config_t config = {
         .url = "http://httpbin.org/redirect-to?url=https%3A%2F%2Fwww.howsmyssl.com",
-        .event_handler = _http_event_handler,
+        .event_handler = _http_event_handler_,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_err_t err = esp_http_client_perform(client);
 
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTP redirect to HTTPS Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "Error perform http request %s", esp_err_to_name(err));
     }
     esp_http_client_cleanup(client);
 }
 
-
 static void http_download_chunk(void)
 {
     esp_http_client_config_t config = {
         .url = "http://httpbin.org/stream-bytes/8912",
-        .event_handler = _http_event_handler,
+        .event_handler = _http_event_handler_,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_err_t err = esp_http_client_perform(client);
 
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTP chunk encoding Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "Error perform http request %s", esp_err_to_name(err));
     }
     esp_http_client_cleanup(client);
@@ -482,7 +555,8 @@ static void http_download_chunk(void)
 static void http_perform_as_stream_reader(void)
 {
     char *buffer = malloc(MAX_HTTP_RECV_BUFFER + 1);
-    if (buffer == NULL) {
+    if (buffer == NULL)
+    {
         ESP_LOGE(TAG, "Cannot malloc http receive buffer");
         return;
     }
@@ -491,24 +565,27 @@ static void http_perform_as_stream_reader(void)
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_err_t err;
-    if ((err = esp_http_client_open(client, 0)) != ESP_OK) {
+    if ((err = esp_http_client_open(client, 0)) != ESP_OK)
+    {
         ESP_LOGE(TAG, "Failed to open HTTP connection: %s", esp_err_to_name(err));
         free(buffer);
         return;
     }
-    int content_length =  esp_http_client_fetch_headers(client);
+    int content_length = esp_http_client_fetch_headers(client);
     int total_read_len = 0, read_len;
-    if (total_read_len < content_length && content_length <= MAX_HTTP_RECV_BUFFER) {
+    if (total_read_len < content_length && content_length <= MAX_HTTP_RECV_BUFFER)
+    {
         read_len = esp_http_client_read(client, buffer, content_length);
-        if (read_len <= 0) {
+        if (read_len <= 0)
+        {
             ESP_LOGE(TAG, "Error read data");
         }
         buffer[read_len] = 0;
         ESP_LOGD(TAG, "read_len = %d", read_len);
     }
     ESP_LOGI(TAG, "HTTP Stream reader Status = %d, content_length = %d",
-                    esp_http_client_get_status_code(client),
-                    esp_http_client_get_content_length(client));
+             esp_http_client_get_status_code(client),
+             esp_http_client_get_content_length(client));
     esp_http_client_close(client);
     esp_http_client_cleanup(client);
     free(buffer);
@@ -518,7 +595,7 @@ static void https_async(void)
 {
     esp_http_client_config_t config = {
         .url = "https://postman-echo.com/post",
-        .event_handler = _http_event_handler,
+        .event_handler = _http_event_handler_,
         .is_async = true,
         .timeout_ms = 5000,
     };
@@ -530,17 +607,22 @@ static void https_async(void)
                             "of the other two stones, the Orthanc-stone and Anor-stone, but was also susceptible to deception himself.";
     esp_http_client_set_method(client, HTTP_METHOD_POST);
     esp_http_client_set_post_field(client, post_data, strlen(post_data));
-    while (1) {
+    while (1)
+    {
         err = esp_http_client_perform(client);
-        if (err != ESP_ERR_HTTP_EAGAIN) {
+        if (err != ESP_ERR_HTTP_EAGAIN)
+        {
             break;
         }
     }
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTPS Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "Error perform http request %s", esp_err_to_name(err));
     }
     esp_http_client_cleanup(client);
@@ -549,17 +631,20 @@ static void https_async(void)
 static void https_with_invalid_url(void)
 {
     esp_http_client_config_t config = {
-            .url = "https://not.existent.url",
-            .event_handler = _http_event_handler,
+        .url = "https://not.existent.url",
+        .event_handler = _http_event_handler_,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_err_t err = esp_http_client_perform(client);
 
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTPS Status = %d, content_length = %d",
                  esp_http_client_get_status_code(client),
                  esp_http_client_get_content_length(client));
-    } else {
+    }
+    else
+    {
         ESP_LOGE(TAG, "Error perform http request %s", esp_err_to_name(err));
     }
     esp_http_client_cleanup(client);
@@ -573,7 +658,7 @@ static void https_with_invalid_url(void)
  */
 static void http_native_request(void)
 {
-    char output_buffer[MAX_HTTP_OUTPUT_BUFFER] = {0};   // Buffer to store response of http request
+    char output_buffer[MAX_HTTP_OUTPUT_BUFFER] = {0}; // Buffer to store response of http request
     int content_length = 0;
     esp_http_client_config_t config = {
         .url = "http://httpbin.org/get",
@@ -583,20 +668,29 @@ static void http_native_request(void)
     // GET Request
     esp_http_client_set_method(client, HTTP_METHOD_GET);
     esp_err_t err = esp_http_client_open(client, 0);
-    if (err != ESP_OK) {
+    if (err != ESP_OK)
+    {
         ESP_LOGE(TAG, "Failed to open HTTP connection: %s", esp_err_to_name(err));
-    } else {
+    }
+    else
+    {
         content_length = esp_http_client_fetch_headers(client);
-        if (content_length < 0) {
+        if (content_length < 0)
+        {
             ESP_LOGE(TAG, "HTTP client fetch headers failed");
-        } else {
+        }
+        else
+        {
             int data_read = esp_http_client_read_response(client, output_buffer, MAX_HTTP_OUTPUT_BUFFER);
-            if (data_read >= 0) {
+            if (data_read >= 0)
+            {
                 ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
+                         esp_http_client_get_status_code(client),
+                         esp_http_client_get_content_length(client));
                 ESP_LOG_BUFFER_HEX(TAG, output_buffer, strlen(output_buffer));
-            } else {
+            }
+            else
+            {
                 ESP_LOGE(TAG, "Failed to read response");
             }
         }
@@ -609,20 +703,27 @@ static void http_native_request(void)
     esp_http_client_set_method(client, HTTP_METHOD_POST);
     esp_http_client_set_header(client, "Content-Type", "application/json");
     err = esp_http_client_open(client, strlen(post_data));
-    if (err != ESP_OK) {
+    if (err != ESP_OK)
+    {
         ESP_LOGE(TAG, "Failed to open HTTP connection: %s", esp_err_to_name(err));
-    } else {
+    }
+    else
+    {
         int wlen = esp_http_client_write(client, post_data, strlen(post_data));
-        if (wlen < 0) {
+        if (wlen < 0)
+        {
             ESP_LOGE(TAG, "Write failed");
         }
         int data_read = esp_http_client_read_response(client, output_buffer, MAX_HTTP_OUTPUT_BUFFER);
-        if (data_read >= 0) {
+        if (data_read >= 0)
+        {
             ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %d",
-            esp_http_client_get_status_code(client),
-            esp_http_client_get_content_length(client));
+                     esp_http_client_get_status_code(client),
+                     esp_http_client_get_content_length(client));
             ESP_LOG_BUFFER_HEX(TAG, output_buffer, strlen(output_buffer));
-        } else {
+        }
+        else
+        {
             ESP_LOGE(TAG, "Failed to read response");
         }
     }
@@ -633,40 +734,49 @@ static void http_partial_download(void)
 {
     esp_http_client_config_t config = {
         .url = "http://jigsaw.w3.org/HTTP/TE/foo.txt",
-        .event_handler = _http_event_handler,
+        .event_handler = _http_event_handler_,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
 
     // Download a file excluding first 10 bytes
     esp_http_client_set_header(client, "Range", "bytes=10-");
     esp_err_t err = esp_http_client_perform(client);
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTP Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "HTTP request failed: %s", esp_err_to_name(err));
     }
 
     // Download last 10 bytes of a file
     esp_http_client_set_header(client, "Range", "bytes=-10");
     err = esp_http_client_perform(client);
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTP Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "HTTP request failed: %s", esp_err_to_name(err));
     }
 
     // Download 10 bytes from 11 to 20
     esp_http_client_set_header(client, "Range", "bytes=11-20");
     err = esp_http_client_perform(client);
-    if (err == ESP_OK) {
+    if (err == ESP_OK)
+    {
         ESP_LOGI(TAG, "HTTP Status = %d, content_length = %d",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
         ESP_LOGE(TAG, "HTTP request failed: %s", esp_err_to_name(err));
     }
 
@@ -698,23 +808,214 @@ static void http_test_task(void *pvParameters)
     vTaskDelete(NULL);
 }
 
-// void app_main(void)
-// {
-//     esp_err_t ret = nvs_flash_init();
-//     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-//       ESP_ERROR_CHECK(nvs_flash_erase());
-//       ret = nvs_flash_init();
-//     }
-//     ESP_ERROR_CHECK(ret);
-//     ESP_ERROR_CHECK(esp_netif_init());
-//     ESP_ERROR_CHECK(esp_event_loop_create_default());
+size_t http_get_request_(char *hostname, char *path, char *query, bool cookie)
+{
+    char *local_response_buffer = malloc(MAX_HTTP_OUTPUT_BUFFER);
+    memset(local_response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER);
 
-//     /* This helper function configures Wi-Fi or Ethernet, as selected in menuconfig.
-//      * Read "Establishing Wi-Fi or Ethernet Connection" section in
-//      * examples/protocols/README.md for more information about this function.
-//      */
-//     ESP_ERROR_CHECK(example_connect());
-//     ESP_LOGI(TAG, "Connected to AP, begin http example");
+    esp_http_client_config_t config = {
+        .host = hostname,
+        .path = path,
+        .event_handler = _http_event_handler_,
+        .user_data = local_response_buffer, // Pass address of local buffer to get response
+        .disable_auto_redirect = false,
+        .user_agent = "SmartGlassesOS/1.0.0",
+        .buffer_size_tx = 2048 // fix HTTP_HEADER: Buffer length is small to fit all the headers error. https://www.reddit.com/r/esp32/comments/krwajq/esp32_http_post_fails_when_using_a_long_header/
+    };
 
-//     xTaskCreate(&http_test_task, "http_test_task", 8192, NULL, 5, NULL);
-// }
+    /*
+    // check if the GET request has a query
+    char query_[1024] = "";
+    if (cookie)
+    {
+        strncat(query_, nvs_data.session_cookie, nvs_data.session_cookie_len);
+        config.query = query_;
+    }
+
+    if (query != NULL)
+    {
+        if (cookie)
+        {
+            const char *amperstand = "&";
+            strcat(query_, amperstand);
+        }
+
+        // check the type of query
+        if (strcmp(query, "documentId") == 0)
+        {
+            const char *documentId = "documentId=";
+            // const char *documentId = "documentId=w2EKdfqufgjNO0IU8SZS"; // NOTE: remove when NOT testing
+            strcat(query_, documentId);
+            strncat(query_, nvs_data.documentId, nvs_data.documentId_len);
+        }
+
+        config.query = query_;
+    }
+    */
+
+    if (query != NULL)
+    {
+        // check if the GET request has a query
+        char query_[1024] = "";
+
+        // check the type of query
+        if (strcmp(query, "documentId") == 0)
+        {
+            const char *documentId = "documentId=";
+            // const char *documentId = "documentId=w2EKdfqufgjNO0IU8SZS"; // NOTE: remove when NOT testing
+            strcat(query_, documentId);
+            strncat(query_, nvs_data.documentId, nvs_data.documentId_len);
+        }
+
+        config.query = query_;
+    }
+
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+
+    esp_http_client_set_method(client, HTTP_METHOD_GET);
+
+    if (cookie)
+    {
+        // add the session cookie to the GET request
+        esp_http_client_set_header(client, "Cookie", nvs_data.session_cookie);
+    }
+
+    // start GET request
+    esp_err_t err = esp_http_client_perform(client);
+
+    size_t length = esp_http_client_get_content_length(client);
+    size_t http_status = esp_http_client_get_status_code(client);
+
+    if (err == ESP_OK)
+    {
+        ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %d", http_status, length);
+        ESP_LOGI(TAG, "local_response_buffer: %s", local_response_buffer);
+
+        // check the path of the request and handle accordingly
+        if (http_status == HttpStatus_Ok && strcmp(path, "/student-question-status") == 0)
+        {
+            memset(nvs_data.question_status, 0, 255);
+            strncpy(nvs_data.question_status, local_response_buffer, length);
+        }
+    }
+    else
+    {
+        // TODO : handle E (22079) HTTP_CLIENT: HTTP GET request failed: ESP_ERR_HTTP_CONNECT
+        // failed due to timeout
+        
+        ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
+        http_status == HttpStatus_Forbidden ? http_status = HttpStatus_Forbidden : http_status == 600;
+    }
+
+    esp_http_client_cleanup(client);
+
+    free(local_response_buffer);
+
+    return http_status;
+}
+
+size_t http_post_request_(char *hostname, char *path, char *post_data, bool cookie)
+{
+    // char local_response_buffer[MAX_HTTP_OUTPUT_BUFFER] = {0};
+
+    char *local_response_buffer = malloc(MAX_HTTP_OUTPUT_BUFFER);
+    memset(local_response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER);
+
+    esp_http_client_config_t config = {
+        .host = hostname,
+        .path = path,
+        .event_handler = _http_event_handler_,
+        .user_data = local_response_buffer, // Pass address of local buffer to get response
+        .disable_auto_redirect = true,
+        .user_agent = "SmartGlassesOS/1.0.0",
+        .buffer_size_tx = 2048 // fix HTTP_HEADER: Buffer length is small to fit all the headers error. https://www.reddit.com/r/esp32/comments/krwajq/esp32_http_post_fails_when_using_a_long_header/
+    };
+
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+
+    esp_http_client_set_method(client, HTTP_METHOD_POST);
+    esp_http_client_set_header(client, "Content-Type", "application/json");
+
+    if (cookie)
+    {
+        // add the session cookie to the GET request
+        esp_http_client_set_header(client, "Cookie", nvs_data.session_cookie);
+    }
+
+    if (post_data != NULL)
+    {
+        esp_http_client_set_post_field(client, post_data, strlen(post_data));
+    }
+
+    // start POST request
+    esp_err_t err = esp_http_client_perform(client);
+
+    size_t length = esp_http_client_get_content_length(client);
+    size_t http_status = esp_http_client_get_status_code(client);
+
+    if (err == ESP_OK)
+    {
+        ESP_LOGI(TAG, "HTTP POST Status = %d, content_length = %d", http_status, length);
+        ESP_LOGI(TAG, "local_response_buffer: %s", local_response_buffer);
+
+        if (http_status == HttpStatus_Ok && strcmp(path, "/session-smartglasses-login") == 0)
+        {
+            // add the new session cookie to NVS
+            nvs_handle_t nvs_handle;
+
+            err = nvs_open("nvs", NVS_READWRITE, &nvs_handle);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "nvs_open err: %s", esp_err_to_name(err));
+            }
+
+            // nvs read id_token
+            err = nvs_set_blob(nvs_handle, "session_cookie", local_response_buffer, length);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "add_blob_to_nvs() nvs_set_blob() err: %s", esp_err_to_name(err));
+            }
+
+            nvs_commit(nvs_handle);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "add_blob_to_nvs() nvs_commit() err: %s", esp_err_to_name(err));
+            }
+
+            nvs_close(nvs_handle);
+
+            // if the nvs write succeeded, add data to nvs_data struct
+            if (err == ESP_OK)
+            {
+                // during session cookie refresh, check the data of the nvs_data.session_cookie struct
+                if (nvs_data.session_cookie == NULL)
+                {
+                    nvs_data.session_cookie = malloc(length);
+                }
+                else
+                {
+                    free(nvs_data.session_cookie);
+                    nvs_data.session_cookie = NULL;
+                    nvs_data.session_cookie = malloc(length);
+                }
+
+                nvs_data.session_cookie_len = length;
+                strncpy(nvs_data.session_cookie, local_response_buffer, length);
+            }
+        }
+    }
+    else
+    {
+        // TODO : handle E (22079) HTTP_CLIENT: HTTP GET request failed: ESP_ERR_HTTP_CONNECT
+        // failed due to timeout
+
+        ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
+        http_status == HttpStatus_Forbidden ? http_status = HttpStatus_Forbidden : http_status == 600;
+    }
+
+    esp_http_client_cleanup(client);
+
+    free(local_response_buffer);
+
+    return http_status;
+}
