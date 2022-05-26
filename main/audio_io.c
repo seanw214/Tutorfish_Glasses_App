@@ -191,7 +191,7 @@ void free_attempt_wifi_conn_00(void)
 
 esp_err_t malloc_returning_home_wav(void)
 {
-    const char *audio_file_path = "/audio/returning_home.wav";
+    const char *audio_file_path = "/audio/returning_home_07.wav";
 
     FILE *f = fopen(audio_file_path, "r");
     if (f == NULL)
@@ -297,9 +297,9 @@ void free_home_instructions_00(void)
     audio_buf.home_instructions_00_wav_audio_buf = NULL;
 }
 
-esp_err_t malloc_exit_this_app_00_wav(void)
+esp_err_t malloc_exit_this_app_01_wav(void)
 {
-    const char *audio_file_path = "/audio/exit_this_app_00.wav";
+    const char *audio_file_path = "/audio/exit_this_app_01.wav";
 
     FILE *f = fopen(audio_file_path, "r");
     if (f == NULL)
@@ -317,8 +317,8 @@ esp_err_t malloc_exit_this_app_00_wav(void)
     }
 
     // get audio file length
-    audio_buf.exit_this_app_00_wav_audio_len = ftell(f);
-    audio_buf.exit_this_app_00_wav_audio_buf = malloc(audio_buf.exit_this_app_00_wav_audio_len * sizeof(int16_t));
+    audio_buf.exit_this_app_01_wav_audio_len = ftell(f);
+    audio_buf.exit_this_app_01_wav_audio_buf = malloc(audio_buf.exit_this_app_01_wav_audio_len * sizeof(int16_t));
 
     // Moving pointer to beginning
     f_err = fseek(f, 0, SEEK_SET);
@@ -328,10 +328,10 @@ esp_err_t malloc_exit_this_app_00_wav(void)
         return ESP_FAIL;
     }
 
-    int read_ret = fread(audio_buf.exit_this_app_00_wav_audio_buf, sizeof(uint8_t), audio_buf.exit_this_app_00_wav_audio_len, f);
-    if (read_ret != audio_buf.exit_this_app_00_wav_audio_len)
+    int read_ret = fread(audio_buf.exit_this_app_01_wav_audio_buf, sizeof(uint8_t), audio_buf.exit_this_app_01_wav_audio_len, f);
+    if (read_ret != audio_buf.exit_this_app_01_wav_audio_len)
     {
-        ESP_LOGE(TAG, "fread() error. read %d bytes out of %d", read_ret, audio_buf.exit_this_app_00_wav_audio_len);
+        ESP_LOGE(TAG, "fread() error. read %d bytes out of %d", read_ret, audio_buf.exit_this_app_01_wav_audio_len);
         return ESP_FAIL;
     }
 
@@ -345,10 +345,10 @@ esp_err_t malloc_exit_this_app_00_wav(void)
     return ESP_OK;
 }
 
-void free_exit_this_app_00(void)
+void free_exit_this_app_01(void)
 {
-    free(audio_buf.exit_this_app_00_wav_audio_buf);
-    audio_buf.exit_this_app_00_wav_audio_buf = NULL;
+    free(audio_buf.exit_this_app_01_wav_audio_buf);
+    audio_buf.exit_this_app_01_wav_audio_buf = NULL;
 }
 
 esp_err_t malloc_error_message_00_wav(void)
@@ -624,6 +624,8 @@ void free_tutors_look_for_answer_00_wav(void)
     free(audio_buf.tutors_look_for_answer_00_wav_audio_buf);
     audio_buf.tutors_look_for_answer_00_wav_audio_buf = NULL;
 }
+
+
 
 esp_err_t play_submit_question_instructions(void)
 {

@@ -18,8 +18,8 @@ esp_err_t malloc_wifi_disconn_00_wav(void);
 esp_err_t malloc_home_instructions_00_wav(void);
 void free_home_instructions_00(void);
 
-esp_err_t malloc_exit_this_app_00_wav(void);
-void free_exit_this_app_00(void);
+esp_err_t malloc_exit_this_app_01_wav(void);
+void free_exit_this_app_01(void);
 
 esp_err_t malloc_welcome_to_tutor_fish_01(void);
 void free_welcome_to_tutor_fish_01(void);
@@ -60,8 +60,10 @@ void free_tutors_look_for_answer_00_wav(void);
 esp_err_t malloc_wait_app_loads_00_wav(void);
 void free_wait_app_loads_00_wav(void);
 
+
 typedef struct
 {
+
     // bool hfp_i2s_playing;
     // bool hfp_i2s_stop;
     bool system_i2s_playing;
@@ -109,8 +111,8 @@ typedef struct
     int16_t *returning_home_wav_audio_buf;
     int returning_home_wav_audio_len;
 
-    int16_t *exit_this_app_00_wav_audio_buf;
-    int exit_this_app_00_wav_audio_len;
+    int16_t *exit_this_app_01_wav_audio_buf;
+    int exit_this_app_01_wav_audio_len;
 
     int16_t *home_instructions_00_wav_audio_buf;
     int home_instructions_00_wav_audio_len;
