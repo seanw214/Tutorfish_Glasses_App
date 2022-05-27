@@ -59,6 +59,8 @@ static bool enable_pic12 = false;
 
 size_t http_status = 0;
 
+bool gpio_wakeup_enabled = false;
+
 static const char *TAG = "main.c";
 
 esp_err_t get_new_session_cookie(void)
@@ -99,16 +101,21 @@ esp_err_t setup_sleep(void)
         set_blue_led(0);
     }
 
-    // setup wake trigger
-    esp_err_t err = esp_sleep_enable_touchpad_wakeup();
-    if (err != ESP_OK)
+    if (!gpio_wakeup_enabled)
     {
-        ESP_LOGE(TAG, "esp_sleep_enable_touchpad_wakeup() error: %s", esp_err_to_name(err));
-        return err;
+        esp_err_t err = gpio_wakeup_enable(GPIO_HOME_BUTTON, GPIO_INTR_LOW_LEVEL);
+        if (err != ESP_OK)
+        {
+            ESP_LOGE("setup_sleep()", "gpio_wakeup_enable() error: %s", esp_err_to_name(err));
+            return err;
+        }
+
+        ESP_LOGI(TAG, "gpio_wakeup_enabled == true");
+        gpio_wakeup_enabled = true;
     }
 
-    ESP_LOGI(TAG, "touch to wake enabled.");
-    ESP_LOGI(TAG, "Going to light sleep...");
+    ESP_LOGI(TAG, "going to sleep...");
+    vTaskDelay(20 / portTICK_PERIOD_MS);
 
     return esp_light_sleep_start();
 }
@@ -411,25 +418,7 @@ void app_main(void)
                     break;
                 }
 
-                if (audio_buf.returning_home_wav_audio_buf == NULL)
-                {
-                    err = malloc_returning_home_wav();
-                    if (err != ESP_OK)
-                    {
-                        ESP_LOGE(TAG, "malloc_returning_home_wav() err: %s", esp_err_to_name(err));
-                    }
-
-                    if (err == ESP_OK)
-                    {
-                        playback_audio_file(audio_buf.returning_home_wav_audio_buf, audio_buf.returning_home_wav_audio_len, audio_volume, false);
-                        if (err != ESP_OK)
-                        {
-                            ESP_LOGE(TAG, "playback_audio_file(returning_home_wav_audio_buf) err: %s", esp_err_to_name(err));
-                        }
-
-                        free_returning_home_wav();
-                    }
-                }
+                playback_returning_home_wav();
 
                 state_machine = TUTORFISH_HOME;
                 break;
@@ -551,8 +540,158 @@ void app_main(void)
                 tutorfish_submit_question_init = false;
             }
 
+            browse_menu();
+
             break;
         case TUTORFISH_SUBMIT_QUESTION:
+
+            /*
+            err = toggle_camera_pwdn(CAMERA_ON);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "toggle_camera_pwdn() err: %s", esp_err_to_name(err));
+            }
+
+            if (audio_buf.taking_a_picture321_02_wav_audio_buf == NULL)
+            {
+                err = malloc_taking_a_picture321_02_wav();
+                if (err != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "malloc_taking_a_picture321_02_wav() err: %s", esp_err_to_name(err));
+                }
+
+                if (err == ESP_OK)
+                {
+                    err = playback_audio_file(audio_buf.taking_a_picture321_02_wav_audio_buf, audio_buf.taking_a_picture321_02_wav_len, audio_volume, false);
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "playback_audio_file(taking_a_picture321_02_wav_audio_buf) err: %s", esp_err_to_name(err));
+                    }
+
+                    free_taking_a_picture321_02_wav();
+                }
+            }
+
+            bool pic_taken = false;
+            uint8_t pic_null_increment = 0;
+            uint8_t pic_taken_increment = 0;
+
+            while (true)
+            {
+                ESP_LOGI(TAG, "Taking picture...");
+                pic = esp_camera_fb_get();
+                if (pic != NULL)
+                {
+                    if (pic->len > 0 && pic_taken_increment++ >= 2)
+                    {
+                        ESP_LOGI(TAG, "Picture taken! Its size is: %zu bytes", pic->len);
+                        pic_taken = true;
+                        break;
+                    }
+                }
+                else
+                {
+                    printf("pic_null_increment: %d\n", pic_null_increment);
+                    if (pic_null_increment++ >= 1)
+                    {
+                        pic_taken = false;
+                        break;
+                    }
+                }
+
+                esp_camera_fb_return(pic);
+                vTaskDelay(10 / portTICK_PERIOD_MS);
+            }
+
+            err = toggle_camera_pwdn(CAMERA_OFF);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "toggle_camera_pwdn() err: %s", esp_err_to_name(err));
+            }
+
+            if (pic_taken)
+            {
+                // lower the jpg_quality of the pic to capture image reliably
+                if (nvs_data.jpeg_quality_exponent > 0)
+                {
+                    nvs_data.jpeg_quality_exponent -= 1;
+                    ESP_LOGI(TAG, "pic_taken nvs_data.jpeg_quality_exponent: %d", nvs_data.jpeg_quality_exponent);
+
+                    // decrease jpg_quality inside nvs
+                    err = write_nvs_int("jpg_exponent", nvs_data.jpeg_quality_exponent);
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "write_nvs_int(jpeg_quality_exponent) err: %s", esp_err_to_name(err));
+                    }
+
+                    // TODO : deinit/init camera?
+                }
+
+                // write the state to nvs
+                err = write_nvs_int("attempt_pic", 0);
+                if (err != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "write_nvs_int(attempting_pic_capture) err: %s", esp_err_to_name(err));
+                }
+
+                // NOTE : the improved jpg quality wont take effect until the user restarts the esp32
+
+                state_machine = CONNECT_TO_WIFI;
+                break;
+            }
+            else
+            {
+                // pic error, usually happens when lighting conditions are poor
+                // lowering the camera_config jpg_quality value fixes the issue
+
+                // playback error message
+                playback_error_message();
+
+                if (nvs_data.jpeg_quality_exponent < 5)
+                {
+                    nvs_data.jpeg_quality_exponent += 1;
+                    ESP_LOGI(TAG, "!pic_taken nvs_data.jpeg_quality_exponent: %d", nvs_data.jpeg_quality_exponent);
+
+                    // increase jpg_quality inside nvs
+                    err = write_nvs_int("jpg_exponent", nvs_data.jpeg_quality_exponent);
+                    if (err != ESP_OK)
+                    {
+                        ESP_LOGE(TAG, "write_nvs_int(jpg_exponent) err: %s", esp_err_to_name(err));
+                    }
+                }
+                else if (nvs_data.jpeg_quality_exponent == 5)
+                {
+                    ESP_LOGE(TAG, "User needs better lighting conditions");
+                }
+
+                // write the state to nvs
+                err = write_nvs_int("attempt_pic", 1);
+                if (err != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "write_nvs_int(attempt_pic) err: %s", esp_err_to_name(err));
+                }
+
+                // deinit the camera then reinit to let the new jpg_quality settings take effect
+                err = esp_camera_deinit();
+                if (err != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "esp_camera_deinit() err: %s", esp_err_to_name(err));
+                }
+
+                err = init_camera();
+                if (err != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "init_camera() err: %s", esp_err_to_name(err));
+                }
+
+                // go to sleep and remain in the picture capture state
+                if (setup_sleep() != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "TUTORFISH_SUBMIT_QUESTION_COMPLETE setup_sleep() err: %s", esp_err_to_name(err));
+                }
+                break;
+            }
+            */
 
             if (!tutorfish_submit_question_init && nvs_data.attempting_pic_capture == 0)
             {
@@ -567,7 +706,7 @@ void app_main(void)
                     ESP_LOGE(TAG, "TUTORFISH_SUBMIT_QUESTION setup_sleep() err: %s", esp_err_to_name(err));
                 }
             }
-            // capture the picture
+            // capture the picture, then attempt wifi connection
             else
             {
                 err = toggle_camera_pwdn(CAMERA_ON);
@@ -635,6 +774,18 @@ void app_main(void)
 
                 if (pic_taken)
                 {
+                    if (nvs_data.attempting_pic_capture == 1)
+                    {
+                        // write the state to nvs
+                        err = write_nvs_int("attempt_pic", 0);
+                        if (err != ESP_OK)
+                        {
+                            ESP_LOGE(TAG, "write_nvs_int(attempt_pic) err: %s", esp_err_to_name(err));
+                        }
+
+                        nvs_data.attempting_pic_capture = 0;
+                    }
+
                     // lower the jpg_quality of the pic to capture image reliably
                     if (nvs_data.jpeg_quality_exponent > 0)
                     {
@@ -651,13 +802,6 @@ void app_main(void)
                         // TODO : deinit/init camera?
                     }
 
-                    // write the state to nvs
-                    err = write_nvs_int("attempt_pic", 0);
-                    if (err != ESP_OK)
-                    {
-                        ESP_LOGE(TAG, "write_nvs_int(attempting_pic_capture) err: %s", esp_err_to_name(err));
-                    }
-
                     // NOTE : the improved jpg quality wont take effect until the user restarts the esp32
 
                     state_machine = CONNECT_TO_WIFI;
@@ -668,26 +812,20 @@ void app_main(void)
                     // pic error, usually happens when lighting conditions are poor
                     // lowering the camera_config jpg_quality value fixes the issue
 
-                    // playback error message
-                    if (audio_buf.error_message_00_wav_audio_buf == NULL)
+                    if (nvs_data.attempting_pic_capture == 0)
                     {
-                        err = malloc_error_message_00_wav();
+                        // write the state to nvs
+                        err = write_nvs_int("attempt_pic", 1);
                         if (err != ESP_OK)
                         {
-                            ESP_LOGE(TAG, "malloc_error_message_00_wav() err: %s", esp_err_to_name(err));
+                            ESP_LOGE(TAG, "write_nvs_int(attempt_pic) err: %s", esp_err_to_name(err));
                         }
 
-                        if (err == ESP_OK)
-                        {
-                            err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, audio_volume, false);
-                            if (err != ESP_OK)
-                            {
-                                ESP_LOGE(TAG, "playback_audio_file(error_message_00_wav_audio_buf) err: %s", esp_err_to_name(err));
-                            }
-
-                            free_error_message_00_wav();
-                        }
+                        nvs_data.attempting_pic_capture = 1;
                     }
+
+                    // playback error message
+                    playback_error_message();
 
                     if (nvs_data.jpeg_quality_exponent < 5)
                     {
@@ -704,13 +842,6 @@ void app_main(void)
                     else if (nvs_data.jpeg_quality_exponent == 5)
                     {
                         ESP_LOGE(TAG, "User needs better lighting conditions");
-                    }
-
-                    // write the state to nvs
-                    err = write_nvs_int("attempt_pic", 1);
-                    if (err != ESP_OK)
-                    {
-                        ESP_LOGE(TAG, "write_nvs_int(attempt_pic) err: %s", esp_err_to_name(err));
                     }
 
                     // deinit the camera then reinit to let the new jpg_quality settings take effect
@@ -734,7 +865,6 @@ void app_main(void)
                     break;
                 }
             }
-
             break;
         case TUTORFISH_SETTINGS:
 
@@ -836,25 +966,7 @@ void app_main(void)
             else if (ret_code != 200)
             {
                 // playback error message
-                if (audio_buf.error_message_00_wav_audio_buf == NULL)
-                {
-                    err = malloc_error_message_00_wav();
-                    if (err != ESP_OK)
-                    {
-                        ESP_LOGE(TAG, "malloc_error_message_00_wav() err: %s", esp_err_to_name(err));
-                    }
-
-                    if (err == ESP_OK)
-                    {
-                        err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, audio_volume, false);
-                        if (err != ESP_OK)
-                        {
-                            ESP_LOGE(TAG, "playback_audio_file(error_message_00_wav_audio_buf) err: %s", esp_err_to_name(err));
-                        }
-
-                        free_error_message_00_wav();
-                    }
-                }
+                playback_error_message();
 
                 ESP_LOGE(TAG, "https_send_pic() ret_code: %d", ret_code);
 
@@ -875,25 +987,7 @@ void app_main(void)
             if (!wifi_bt_status.wifi_conn)
             {
                 // playback error message
-                if (audio_buf.error_message_00_wav_audio_buf == NULL)
-                {
-                    err = malloc_error_message_00_wav();
-                    if (err != ESP_OK)
-                    {
-                        ESP_LOGE(TAG, "malloc_error_message_00_wav() err: %s", esp_err_to_name(err));
-                    }
-
-                    if (err == ESP_OK)
-                    {
-                        err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, audio_volume, false);
-                        if (err != ESP_OK)
-                        {
-                            ESP_LOGE(TAG, "playback_audio_file(error_message_00_wav_audio_buf) err: %s", esp_err_to_name(err));
-                        }
-
-                        free_error_message_00_wav();
-                    }
-                }
+                playback_error_message();
 
                 // db_poll_attempts has reach its limit
                 db_poll_attempts = 0;
@@ -907,25 +1001,7 @@ void app_main(void)
                 if (nvs_data.documentId == NULL || nvs_data.documentId_len <= 0)
                 {
                     // playback error message
-                    if (audio_buf.error_message_00_wav_audio_buf == NULL)
-                    {
-                        err = malloc_error_message_00_wav();
-                        if (err != ESP_OK)
-                        {
-                            ESP_LOGE(TAG, "malloc_error_message_00_wav() err: %s", esp_err_to_name(err));
-                        }
-
-                        if (err == ESP_OK)
-                        {
-                            err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, audio_volume, false);
-                            if (err != ESP_OK)
-                            {
-                                ESP_LOGE(TAG, "playback_audio_file(error_message_00_wav_audio_buf) err: %s", esp_err_to_name(err));
-                            }
-
-                            free_error_message_00_wav();
-                        }
-                    }
+                    playback_error_message();
 
                     db_poll_attempts = 0;
                     state_machine = TUTORFISH_SUBMIT_QUESTION_COMPLETE;
@@ -964,7 +1040,7 @@ void app_main(void)
                             err = malloc_tutors_look_for_answer_00_wav();
                             if (err != ESP_OK)
                             {
-                                ESP_LOGE(TAG, "malloc_error_message_00_wav() err: %s", esp_err_to_name(err));
+                                ESP_LOGE(TAG, "malloc_tutors_look_for_answer_00_wav() err: %s", esp_err_to_name(err));
                             }
 
                             if (err == ESP_OK)
@@ -1006,7 +1082,7 @@ void app_main(void)
                             err = malloc_tutors_found_answer_00_wav();
                             if (err != ESP_OK)
                             {
-                                ESP_LOGE(TAG, "malloc_error_message_00_wav() err: %s", esp_err_to_name(err));
+                                ESP_LOGE(TAG, "malloc_tutors_found_answer_00_wav() err: %s", esp_err_to_name(err));
                             }
 
                             if (err == ESP_OK)
@@ -1046,25 +1122,7 @@ void app_main(void)
             else
             {
                 // playback error message
-                if (audio_buf.error_message_00_wav_audio_buf == NULL)
-                {
-                    err = malloc_error_message_00_wav();
-                    if (err != ESP_OK)
-                    {
-                        ESP_LOGE(TAG, "malloc_error_message_00_wav() err: %s", esp_err_to_name(err));
-                    }
-
-                    if (err == ESP_OK)
-                    {
-                        err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, audio_volume, false);
-                        if (err != ESP_OK)
-                        {
-                            ESP_LOGE(TAG, "playback_audio_file(error_message_00_wav_audio_buf) err: %s", esp_err_to_name(err));
-                        }
-
-                        free_error_message_00_wav();
-                    }
-                }
+                playback_error_message();
 
                 // db_poll_attempts has reach its limit
                 db_poll_attempts = 0;
@@ -1087,25 +1145,7 @@ void app_main(void)
             if (!wifi_bt_status.wifi_conn)
             {
                 // playback error message
-                if (audio_buf.error_message_00_wav_audio_buf == NULL)
-                {
-                    err = malloc_error_message_00_wav();
-                    if (err != ESP_OK)
-                    {
-                        ESP_LOGE(TAG, "malloc_error_message_00_wav() err: %s", esp_err_to_name(err));
-                    }
-
-                    if (err == ESP_OK)
-                    {
-                        err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, audio_volume, false);
-                        if (err != ESP_OK)
-                        {
-                            ESP_LOGE(TAG, "playback_audio_file(error_message_00_wav_audio_buf) err: %s", esp_err_to_name(err));
-                        }
-
-                        free_error_message_00_wav();
-                    }
-                }
+                playback_error_message();
 
                 // db_poll_attempts has reach its limit
                 tts_download_attempts = 0;
@@ -1119,25 +1159,7 @@ void app_main(void)
                 if (strcmp(nvs_data.question_ttsKey, "") == 0)
                 {
                     // playback error message
-                    if (audio_buf.error_message_00_wav_audio_buf == NULL)
-                    {
-                        err = malloc_error_message_00_wav();
-                        if (err != ESP_OK)
-                        {
-                            ESP_LOGE(TAG, "malloc_error_message_00_wav() err: %s", esp_err_to_name(err));
-                        }
-
-                        if (err == ESP_OK)
-                        {
-                            err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, audio_volume, false);
-                            if (err != ESP_OK)
-                            {
-                                ESP_LOGE(TAG, "playback_audio_file(error_message_00_wav_audio_buf) err: %s", esp_err_to_name(err));
-                            }
-
-                            free_error_message_00_wav();
-                        }
-                    }
+                    playback_error_message();
 
                     tts_download_attempts = 0;
                     state_machine = TUTORFISH_SUBMIT_QUESTION_COMPLETE;

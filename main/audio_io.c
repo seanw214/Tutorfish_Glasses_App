@@ -33,6 +33,61 @@ static bool queued_audio_file_stoppable;
 
 audio_buf_t audio_buf;
 
+esp_err_t malloc_confirm_sfx_04_wav(void)
+{
+    const char *audio_file_path = "/audio/confirm_sfx_04.wav";
+
+    FILE *f = fopen(audio_file_path, "r");
+    if (f == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to open file reading");
+        return ESP_FAIL;
+    }
+
+    // Moving pointer to end
+    int f_err = fseek(f, 0, SEEK_END);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_END error");
+        return ESP_FAIL;
+    }
+
+    // get audio file length
+    audio_buf.confirm_sfx_04_wav_audio_len = ftell(f);
+    audio_buf.confirm_sfx_04_wav_audio_buf = malloc(audio_buf.confirm_sfx_04_wav_audio_len * sizeof(int16_t));
+
+    // Moving pointer to beginning
+    f_err = fseek(f, 0, SEEK_SET);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_SET error");
+        return ESP_FAIL;
+    }
+
+    int read_ret = fread(audio_buf.confirm_sfx_04_wav_audio_buf, sizeof(uint8_t), audio_buf.confirm_sfx_04_wav_audio_len, f);
+    if (read_ret != audio_buf.confirm_sfx_04_wav_audio_len)
+    {
+        ESP_LOGE(TAG, "fread() error. read %d bytes out of %d", read_ret, audio_buf.confirm_sfx_04_wav_audio_len);
+        return ESP_FAIL;
+    }
+
+    f_err = fclose(f);
+    if (f_err != 0)
+    {
+        ESP_LOGW(TAG, "fclose() failed");
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+}
+
+void free_confirm_sfx_04_wav(void)
+{
+    free(audio_buf.confirm_sfx_04_wav_audio_buf);
+    audio_buf.confirm_sfx_04_wav_audio_buf = NULL;
+}
+
+
 esp_err_t malloc_wait_app_loads_00_wav(void)
 {
     const char *audio_file_path = "/audio/wait_app_loads_00.wav";
@@ -189,7 +244,7 @@ void free_attempt_wifi_conn_00(void)
     audio_buf.attempt_wifi_conn_00_wav_audio_buf = NULL;
 }
 
-esp_err_t malloc_returning_home_wav(void)
+esp_err_t malloc_returning_home_wav_sfx(void)
 {
     const char *audio_file_path = "/audio/returning_home_07.wav";
 
@@ -237,7 +292,7 @@ esp_err_t malloc_returning_home_wav(void)
     return ESP_OK;
 }
 
-void free_returning_home_wav(void)
+void free_returning_home_wav_sfx(void)
 {
     free(audio_buf.returning_home_wav_audio_buf);
     audio_buf.returning_home_wav_audio_buf = NULL;
@@ -625,6 +680,601 @@ void free_tutors_look_for_answer_00_wav(void)
     audio_buf.tutors_look_for_answer_00_wav_audio_buf = NULL;
 }
 
+esp_err_t malloc_ascii_5_00_wav(void)
+{
+    const char *audio_file_path = "/audio/ascii_5_00.wav";
+
+    FILE *f = fopen(audio_file_path, "r");
+    if (f == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to open file reading");
+        return ESP_FAIL;
+    }
+
+    // Moving pointer to end
+    int f_err = fseek(f, 0, SEEK_END);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_END error");
+        return ESP_FAIL;
+    }
+
+    // get audio file length
+    audio_buf.ascii_5_00_wav_audio_len = ftell(f);
+    audio_buf.ascii_5_00_wav_audio_buf = malloc(audio_buf.ascii_5_00_wav_audio_len * sizeof(int16_t));
+
+    // Moving pointer to beginning
+    f_err = fseek(f, 0, SEEK_SET);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_SET error");
+        return ESP_FAIL;
+    }
+
+    int read_ret = fread(audio_buf.ascii_5_00_wav_audio_buf, sizeof(uint8_t), audio_buf.ascii_5_00_wav_audio_len, f);
+    if (read_ret != audio_buf.ascii_5_00_wav_audio_len)
+    {
+        ESP_LOGE(TAG, "fread() error. read %d bytes out of %d", read_ret, audio_buf.ascii_5_00_wav_audio_len);
+        return ESP_FAIL;
+    }
+
+    f_err = fclose(f);
+    if (f_err != 0)
+    {
+        ESP_LOGW(TAG, "fclose() failed");
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+}
+
+void free_ascii_5_00_wav(void)
+{
+    free(audio_buf.ascii_5_00_wav_audio_buf);
+    audio_buf.ascii_5_00_wav_audio_buf = NULL;
+}
+
+///////
+
+esp_err_t malloc_percent_completed_00_wav(void)
+{
+    const char *audio_file_path = "/audio/percent_completed_00.wav";
+
+    FILE *f = fopen(audio_file_path, "r");
+    if (f == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to open file reading");
+        return ESP_FAIL;
+    }
+
+    // Moving pointer to end
+    int f_err = fseek(f, 0, SEEK_END);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_END error");
+        return ESP_FAIL;
+    }
+
+    // get audio file length
+    audio_buf.percent_completed_00_wav_audio_len = ftell(f);
+    audio_buf.percent_completed_00_wav_audio_buf = malloc(audio_buf.percent_completed_00_wav_audio_len * sizeof(int16_t));
+
+    // Moving pointer to beginning
+    f_err = fseek(f, 0, SEEK_SET);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_SET error");
+        return ESP_FAIL;
+    }
+
+    int read_ret = fread(audio_buf.percent_completed_00_wav_audio_buf, sizeof(uint8_t), audio_buf.percent_completed_00_wav_audio_len, f);
+    if (read_ret != audio_buf.percent_completed_00_wav_audio_len)
+    {
+        ESP_LOGE(TAG, "fread() error. read %d bytes out of %d", read_ret, audio_buf.percent_completed_00_wav_audio_len);
+        return ESP_FAIL;
+    }
+
+    f_err = fclose(f);
+    if (f_err != 0)
+    {
+        ESP_LOGW(TAG, "fclose() failed");
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+}
+
+void free_percent_completed_00_wav(void)
+{
+    free(audio_buf.percent_completed_00_wav_audio_buf);
+    audio_buf.percent_completed_00_wav_audio_buf = NULL;
+}
+
+esp_err_t malloc_10_00_wav(void)
+{
+    const char *audio_file_path = "/audio/10_00.wav";
+
+    FILE *f = fopen(audio_file_path, "r");
+    if (f == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to open file reading");
+        return ESP_FAIL;
+    }
+
+    // Moving pointer to end
+    int f_err = fseek(f, 0, SEEK_END);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_END error");
+        return ESP_FAIL;
+    }
+
+    // get audio file length
+    audio_buf._10_00_wav_audio_len = ftell(f);
+    audio_buf._10_00_wav_audio_buf = malloc(audio_buf._10_00_wav_audio_len * sizeof(int16_t));
+
+    // Moving pointer to beginning
+    f_err = fseek(f, 0, SEEK_SET);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_SET error");
+        return ESP_FAIL;
+    }
+
+    int read_ret = fread(audio_buf._10_00_wav_audio_buf, sizeof(uint8_t), audio_buf._10_00_wav_audio_len, f);
+    if (read_ret != audio_buf._10_00_wav_audio_len)
+    {
+        ESP_LOGE(TAG, "fread() error. read %d bytes out of %d", read_ret, audio_buf._10_00_wav_audio_len);
+        return ESP_FAIL;
+    }
+
+    f_err = fclose(f);
+    if (f_err != 0)
+    {
+        ESP_LOGW(TAG, "fclose() failed");
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+}
+
+void free_10_00_wav(void)
+{
+    free(audio_buf._10_00_wav_audio_buf);
+    audio_buf._10_00_wav_audio_buf = NULL;
+}
+
+esp_err_t malloc_20_00_wav(void)
+{
+    const char *audio_file_path = "/audio/20_00.wav";
+
+    FILE *f = fopen(audio_file_path, "r");
+    if (f == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to open file reading");
+        return ESP_FAIL;
+    }
+
+    // Moving pointer to end
+    int f_err = fseek(f, 0, SEEK_END);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_END error");
+        return ESP_FAIL;
+    }
+
+    // get audio file length
+    audio_buf._20_00_wav_audio_len = ftell(f);
+    audio_buf._20_00_wav_audio_buf = malloc(audio_buf._20_00_wav_audio_len * sizeof(int16_t));
+
+    // Moving pointer to beginning
+    f_err = fseek(f, 0, SEEK_SET);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_SET error");
+        return ESP_FAIL;
+    }
+
+    int read_ret = fread(audio_buf._20_00_wav_audio_buf, sizeof(uint8_t), audio_buf._20_00_wav_audio_len, f);
+    if (read_ret != audio_buf._20_00_wav_audio_len)
+    {
+        ESP_LOGE(TAG, "fread() error. read %d bytes out of %d", read_ret, audio_buf._20_00_wav_audio_len);
+        return ESP_FAIL;
+    }
+
+    f_err = fclose(f);
+    if (f_err != 0)
+    {
+        ESP_LOGW(TAG, "fclose() failed");
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+}
+
+void free_20_00_wav(void)
+{
+    free(audio_buf._20_00_wav_audio_buf);
+    audio_buf._20_00_wav_audio_buf = NULL;
+}
+
+esp_err_t malloc_30_00_wav(void)
+{
+    const char *audio_file_path = "/audio/30_00.wav";
+
+    FILE *f = fopen(audio_file_path, "r");
+    if (f == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to open file reading");
+        return ESP_FAIL;
+    }
+
+    // Moving pointer to end
+    int f_err = fseek(f, 0, SEEK_END);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_END error");
+        return ESP_FAIL;
+    }
+
+    // get audio file length
+    audio_buf._30_00_wav_audio_len = ftell(f);
+    audio_buf._30_00_wav_audio_buf = malloc(audio_buf._30_00_wav_audio_len * sizeof(int16_t));
+
+    // Moving pointer to beginning
+    f_err = fseek(f, 0, SEEK_SET);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_SET error");
+        return ESP_FAIL;
+    }
+
+    int read_ret = fread(audio_buf._30_00_wav_audio_buf, sizeof(uint8_t), audio_buf._30_00_wav_audio_len, f);
+    if (read_ret != audio_buf._30_00_wav_audio_len)
+    {
+        ESP_LOGE(TAG, "fread() error. read %d bytes out of %d", read_ret, audio_buf._30_00_wav_audio_len);
+        return ESP_FAIL;
+    }
+
+    f_err = fclose(f);
+    if (f_err != 0)
+    {
+        ESP_LOGW(TAG, "fclose() failed");
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+}
+
+void free_30_00_wav(void)
+{
+    free(audio_buf._30_00_wav_audio_buf);
+    audio_buf._30_00_wav_audio_buf = NULL;
+}
+
+esp_err_t malloc_40_00_wav(void)
+{
+    const char *audio_file_path = "/audio/40_00.wav";
+
+    FILE *f = fopen(audio_file_path, "r");
+    if (f == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to open file reading");
+        return ESP_FAIL;
+    }
+
+    // Moving pointer to end
+    int f_err = fseek(f, 0, SEEK_END);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_END error");
+        return ESP_FAIL;
+    }
+
+    // get audio file length
+    audio_buf._40_00_wav_audio_len = ftell(f);
+    audio_buf._40_00_wav_audio_buf = malloc(audio_buf._40_00_wav_audio_len * sizeof(int16_t));
+
+    // Moving pointer to beginning
+    f_err = fseek(f, 0, SEEK_SET);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_SET error");
+        return ESP_FAIL;
+    }
+
+    int read_ret = fread(audio_buf._40_00_wav_audio_buf, sizeof(uint8_t), audio_buf._40_00_wav_audio_len, f);
+    if (read_ret != audio_buf._40_00_wav_audio_len)
+    {
+        ESP_LOGE(TAG, "fread() error. read %d bytes out of %d", read_ret, audio_buf._40_00_wav_audio_len);
+        return ESP_FAIL;
+    }
+
+    f_err = fclose(f);
+    if (f_err != 0)
+    {
+        ESP_LOGW(TAG, "fclose() failed");
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+}
+
+void free_40_00_wav(void)
+{
+    free(audio_buf._40_00_wav_audio_buf);
+    audio_buf._40_00_wav_audio_buf = NULL;
+}
+
+esp_err_t malloc_50_00_wav(void)
+{
+    const char *audio_file_path = "/audio/50_00.wav";
+
+    FILE *f = fopen(audio_file_path, "r");
+    if (f == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to open file reading");
+        return ESP_FAIL;
+    }
+
+    // Moving pointer to end
+    int f_err = fseek(f, 0, SEEK_END);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_END error");
+        return ESP_FAIL;
+    }
+
+    // get audio file length
+    audio_buf._50_00_wav_audio_len = ftell(f);
+    audio_buf._50_00_wav_audio_buf = malloc(audio_buf._50_00_wav_audio_len * sizeof(int16_t));
+
+    // Moving pointer to beginning
+    f_err = fseek(f, 0, SEEK_SET);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_SET error");
+        return ESP_FAIL;
+    }
+
+    int read_ret = fread(audio_buf._50_00_wav_audio_buf, sizeof(uint8_t), audio_buf._50_00_wav_audio_len, f);
+    if (read_ret != audio_buf._50_00_wav_audio_len)
+    {
+        ESP_LOGE(TAG, "fread() error. read %d bytes out of %d", read_ret, audio_buf._50_00_wav_audio_len);
+        return ESP_FAIL;
+    }
+
+    f_err = fclose(f);
+    if (f_err != 0)
+    {
+        ESP_LOGW(TAG, "fclose() failed");
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+}
+
+void free_50_00_wav(void)
+{
+    free(audio_buf._50_00_wav_audio_buf);
+    audio_buf._50_00_wav_audio_buf = NULL;
+}
+
+esp_err_t malloc_60_00_wav(void)
+{
+    const char *audio_file_path = "/audio/60_00.wav";
+
+    FILE *f = fopen(audio_file_path, "r");
+    if (f == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to open file reading");
+        return ESP_FAIL;
+    }
+
+    // Moving pointer to end
+    int f_err = fseek(f, 0, SEEK_END);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_END error");
+        return ESP_FAIL;
+    }
+
+    // get audio file length
+    audio_buf._60_00_wav_audio_len = ftell(f);
+    audio_buf._60_00_wav_audio_buf = malloc(audio_buf._60_00_wav_audio_len * sizeof(int16_t));
+
+    // Moving pointer to beginning
+    f_err = fseek(f, 0, SEEK_SET);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_SET error");
+        return ESP_FAIL;
+    }
+
+    int read_ret = fread(audio_buf._60_00_wav_audio_buf, sizeof(uint8_t), audio_buf._60_00_wav_audio_len, f);
+    if (read_ret != audio_buf._60_00_wav_audio_len)
+    {
+        ESP_LOGE(TAG, "fread() error. read %d bytes out of %d", read_ret, audio_buf._60_00_wav_audio_len);
+        return ESP_FAIL;
+    }
+
+    f_err = fclose(f);
+    if (f_err != 0)
+    {
+        ESP_LOGW(TAG, "fclose() failed");
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+}
+
+void free_60_00_wav(void)
+{
+    free(audio_buf._60_00_wav_audio_buf);
+    audio_buf._60_00_wav_audio_buf = NULL;
+}
+
+esp_err_t malloc_70_00_wav(void)
+{
+    const char *audio_file_path = "/audio/70_00.wav";
+
+    FILE *f = fopen(audio_file_path, "r");
+    if (f == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to open file reading");
+        return ESP_FAIL;
+    }
+
+    // Moving pointer to end
+    int f_err = fseek(f, 0, SEEK_END);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_END error");
+        return ESP_FAIL;
+    }
+
+    // get audio file length
+    audio_buf._70_00_wav_audio_len = ftell(f);
+    audio_buf._70_00_wav_audio_buf = malloc(audio_buf._70_00_wav_audio_len * sizeof(int16_t));
+
+    // Moving pointer to beginning
+    f_err = fseek(f, 0, SEEK_SET);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_SET error");
+        return ESP_FAIL;
+    }
+
+    int read_ret = fread(audio_buf._70_00_wav_audio_buf, sizeof(uint8_t), audio_buf._70_00_wav_audio_len, f);
+    if (read_ret != audio_buf._70_00_wav_audio_len)
+    {
+        ESP_LOGE(TAG, "fread() error. read %d bytes out of %d", read_ret, audio_buf._70_00_wav_audio_len);
+        return ESP_FAIL;
+    }
+
+    f_err = fclose(f);
+    if (f_err != 0)
+    {
+        ESP_LOGW(TAG, "fclose() failed");
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+}
+
+void free_70_00_wav(void)
+{
+    free(audio_buf._70_00_wav_audio_buf);
+    audio_buf._70_00_wav_audio_buf = NULL;
+}
+
+esp_err_t malloc_80_00_wav(void)
+{
+    const char *audio_file_path = "/audio/80_00.wav";
+
+    FILE *f = fopen(audio_file_path, "r");
+    if (f == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to open file reading");
+        return ESP_FAIL;
+    }
+
+    // Moving pointer to end
+    int f_err = fseek(f, 0, SEEK_END);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_END error");
+        return ESP_FAIL;
+    }
+
+    // get audio file length
+    audio_buf._80_00_wav_audio_len = ftell(f);
+    audio_buf._80_00_wav_audio_buf = malloc(audio_buf._80_00_wav_audio_len * sizeof(int16_t));
+
+    // Moving pointer to beginning
+    f_err = fseek(f, 0, SEEK_SET);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_SET error");
+        return ESP_FAIL;
+    }
+
+    int read_ret = fread(audio_buf._80_00_wav_audio_buf, sizeof(uint8_t), audio_buf._80_00_wav_audio_len, f);
+    if (read_ret != audio_buf._80_00_wav_audio_len)
+    {
+        ESP_LOGE(TAG, "fread() error. read %d bytes out of %d", read_ret, audio_buf._80_00_wav_audio_len);
+        return ESP_FAIL;
+    }
+
+    f_err = fclose(f);
+    if (f_err != 0)
+    {
+        ESP_LOGW(TAG, "fclose() failed");
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+}
+
+void free_80_00_wav(void)
+{
+    free(audio_buf._80_00_wav_audio_buf);
+    audio_buf._80_00_wav_audio_buf = NULL;
+}
+
+esp_err_t malloc_90_00_wav(void)
+{
+    const char *audio_file_path = "/audio/90_00.wav";
+
+    FILE *f = fopen(audio_file_path, "r");
+    if (f == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to open file reading");
+        return ESP_FAIL;
+    }
+
+    // Moving pointer to end
+    int f_err = fseek(f, 0, SEEK_END);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_END error");
+        return ESP_FAIL;
+    }
+
+    // get audio file length
+    audio_buf._90_00_wav_audio_len = ftell(f);
+    audio_buf._90_00_wav_audio_buf = malloc(audio_buf._90_00_wav_audio_len * sizeof(int16_t));
+
+    // Moving pointer to beginning
+    f_err = fseek(f, 0, SEEK_SET);
+    if (f_err != 0)
+    {
+        ESP_LOGE(TAG, "fseek() SEEK_SET error");
+        return ESP_FAIL;
+    }
+
+    int read_ret = fread(audio_buf._90_00_wav_audio_buf, sizeof(uint8_t), audio_buf._90_00_wav_audio_len, f);
+    if (read_ret != audio_buf._90_00_wav_audio_len)
+    {
+        ESP_LOGE(TAG, "fread() error. read %d bytes out of %d", read_ret, audio_buf._90_00_wav_audio_len);
+        return ESP_FAIL;
+    }
+
+    f_err = fclose(f);
+    if (f_err != 0)
+    {
+        ESP_LOGW(TAG, "fclose() failed");
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+}
+
+void free_90_00_wav(void)
+{
+    free(audio_buf._90_00_wav_audio_buf);
+    audio_buf._90_00_wav_audio_buf = NULL;
+}
 
 
 esp_err_t play_submit_question_instructions(void)
@@ -859,28 +1509,327 @@ esp_err_t playback_audio_file_2(int16_t *audio_file_buf, int audio_file_len, flo
 
 esp_err_t playback_error_message(void)
 {
+    esp_err_t err = ESP_OK;
+
     // playback error message
     if (audio_buf.error_message_00_wav_audio_buf == NULL)
     {
-        esp_err_t err = malloc_error_message_00_wav();
+        err = malloc_error_message_00_wav();
         if (err != ESP_OK)
         {
             ESP_LOGE(TAG, "malloc_error_message_00_wav() err: %s", esp_err_to_name(err));
         }
+    }
+    if (err == ESP_OK)
+    {
+        err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, audio_volume, false);
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "playback_audio_file(error_message_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+        }
+    }
+
+    free_error_message_00_wav();
+
+    return err;
+}
+
+esp_err_t playback_confirm_sfx_04(bool skippable)
+{
+    esp_err_t err = ESP_OK;
+
+    // playback error message
+    if (audio_buf.confirm_sfx_04_wav_audio_buf == NULL)
+    {
+        err = malloc_confirm_sfx_04_wav();
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "malloc_confirm_sfx_04_wav() err: %s", esp_err_to_name(err));
+        }
+    }
+    if (err == ESP_OK)
+    {
+        err = playback_audio_file(audio_buf.confirm_sfx_04_wav_audio_buf, audio_buf.confirm_sfx_04_wav_audio_len, audio_volume, skippable);
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "playback_audio_file(confirm_sfx_04_wav_audio_buf) err: %s", esp_err_to_name(err));
+        }
+    }
+
+    free_confirm_sfx_04_wav();
+
+    return err;
+}
+
+esp_err_t playback_returning_home_wav(void)
+{
+    esp_err_t err = ESP_OK;
+
+    if (audio_buf.returning_home_wav_audio_buf == NULL)
+    {
+        err = malloc_returning_home_wav_sfx();
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "malloc_smart_glasses_home_01_wav() err: %s", esp_err_to_name(err));
+        }
+    }
+
+    if (err == ESP_OK)
+    {
+        playback_audio_file(audio_buf.returning_home_wav_audio_buf, audio_buf.returning_home_wav_audio_len, audio_volume, false);
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "playback_audio_file() err: %s", esp_err_to_name(err));
+        }
+    }
+
+    free_returning_home_wav_sfx();
+
+    return err;
+}
+
+esp_err_t playback_completion_percentage(int file_size, float written_bytes, bool skippable)
+{
+    esp_err_t err = ESP_OK;
+
+    if (written_bytes <= file_size * 0.1f)
+    {
+        if (audio_buf.ascii_5_00_wav_audio_buf == NULL)
+        {
+            err = malloc_ascii_5_00_wav();
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "malloc_ascii_5_00_wav() err: %s", esp_err_to_name(err));
+            }
+        }
 
         if (err == ESP_OK)
         {
-            err = playback_audio_file(audio_buf.error_message_00_wav_audio_buf, audio_buf.error_message_00_wav_audio_len, audio_volume, false);
+            playback_audio_file(audio_buf.ascii_5_00_wav_audio_buf, audio_buf.ascii_5_00_wav_audio_len, audio_volume, skippable);
             if (err != ESP_OK)
             {
-                ESP_LOGE(TAG, "playback_audio_file(error_message_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                ESP_LOGE(TAG, "playback_audio_file() err: %s", esp_err_to_name(err));
             }
-
-            free_error_message_00_wav();
         }
-        return err;
+
+        free_ascii_5_00_wav();
     }
-    return ESP_FAIL;
+    else if (written_bytes > file_size * 0.1f && written_bytes <= file_size * 0.2f)
+    {
+        if (audio_buf._10_00_wav_audio_buf == NULL)
+        {
+            err = malloc_10_00_wav();
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "malloc_10_00_wav() err: %s", esp_err_to_name(err));
+            }
+        }
+
+        if (err == ESP_OK)
+        {
+            playback_audio_file(audio_buf._10_00_wav_audio_buf, audio_buf._10_00_wav_audio_len, audio_volume, skippable);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "playback_audio_file() err: %s", esp_err_to_name(err));
+            }
+        }
+
+        free_10_00_wav();
+    }
+    else if (written_bytes > file_size * 0.2f && written_bytes <= file_size * 0.3f)
+    {
+        if (audio_buf._20_00_wav_audio_buf == NULL)
+        {
+            err = malloc_20_00_wav();
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "malloc_20_00_wav() err: %s", esp_err_to_name(err));
+            }
+        }
+
+        if (err == ESP_OK)
+        {
+            playback_audio_file(audio_buf._20_00_wav_audio_buf, audio_buf._20_00_wav_audio_len, audio_volume, skippable);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "playback_audio_file() err: %s", esp_err_to_name(err));
+            }
+        }
+
+        free_20_00_wav();
+    }
+    else if (written_bytes > file_size * 0.3f && written_bytes <= file_size * 0.4f)
+    {
+        if (audio_buf._30_00_wav_audio_buf == NULL)
+        {
+            err = malloc_30_00_wav();
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "malloc_30_00_wav() err: %s", esp_err_to_name(err));
+            }
+        }
+
+        if (err == ESP_OK)
+        {
+            playback_audio_file(audio_buf._30_00_wav_audio_buf, audio_buf._30_00_wav_audio_len, audio_volume, skippable);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "playback_audio_file() err: %s", esp_err_to_name(err));
+            }
+        }
+
+        free_30_00_wav();
+    }
+    else if (written_bytes > file_size * 0.4f && written_bytes <= file_size * 0.5f)
+    {
+        if (audio_buf._40_00_wav_audio_buf == NULL)
+        {
+            err = malloc_40_00_wav();
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "malloc_40_00_wav() err: %s", esp_err_to_name(err));
+            }
+        }
+
+        if (err == ESP_OK)
+        {
+            playback_audio_file(audio_buf._40_00_wav_audio_buf, audio_buf._40_00_wav_audio_len, audio_volume, skippable);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "playback_audio_file() err: %s", esp_err_to_name(err));
+            }
+        }
+
+        free_40_00_wav();
+    }
+    else if (written_bytes > file_size * 0.5f && written_bytes <= file_size * 0.6f)
+    {
+        if (audio_buf._50_00_wav_audio_buf == NULL)
+        {
+            err = malloc_50_00_wav();
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "malloc_50_00_wav() err: %s", esp_err_to_name(err));
+            }
+        }
+        if (err == ESP_OK)
+        {
+            playback_audio_file(audio_buf._50_00_wav_audio_buf, audio_buf._50_00_wav_audio_len, audio_volume, skippable);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "playback_audio_file() err: %s", esp_err_to_name(err));
+            }
+        }
+
+        free_50_00_wav();
+    }
+    else if (written_bytes > file_size * 0.6f && written_bytes <= file_size * 0.7f)
+    {
+        if (audio_buf._60_00_wav_audio_buf == NULL)
+        {
+            err = malloc_60_00_wav();
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "malloc_60_00_wav() err: %s", esp_err_to_name(err));
+            }
+        }
+        if (err == ESP_OK)
+        {
+            playback_audio_file(audio_buf._60_00_wav_audio_buf, audio_buf._60_00_wav_audio_len, audio_volume, skippable);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "playback_audio_file() err: %s", esp_err_to_name(err));
+            }
+        }
+
+        free_60_00_wav();
+    }
+    else if (written_bytes > file_size * 0.7f && written_bytes <= file_size * 0.8f)
+    {
+        if (audio_buf._70_00_wav_audio_buf == NULL)
+        {
+            err = malloc_70_00_wav();
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "malloc_70_00_wav() err: %s", esp_err_to_name(err));
+            }
+        }
+        if (err == ESP_OK)
+        {
+            playback_audio_file(audio_buf._70_00_wav_audio_buf, audio_buf._70_00_wav_audio_len, audio_volume, skippable);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "playback_audio_file() err: %s", esp_err_to_name(err));
+            }
+        }
+
+        free_70_00_wav();
+    }
+    else if (written_bytes > file_size * 0.8f && written_bytes <= file_size * 0.9f)
+    {
+        if (audio_buf._80_00_wav_audio_buf == NULL)
+        {
+            err = malloc_80_00_wav();
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "malloc_80_00_wav() err: %s", esp_err_to_name(err));
+            }
+        }
+
+        if (err == ESP_OK)
+        {
+            playback_audio_file(audio_buf._80_00_wav_audio_buf, audio_buf._80_00_wav_audio_len, audio_volume, skippable);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "playback_audio_file() err: %s", esp_err_to_name(err));
+            }
+        }
+
+        free_80_00_wav();
+    }
+    else if (written_bytes > file_size * 0.9f)
+    {
+        if (audio_buf._90_00_wav_audio_buf == NULL)
+        {
+            err = malloc_90_00_wav();
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "malloc_90_00_wav() err: %s", esp_err_to_name(err));
+            }
+        }
+        if (err == ESP_OK)
+        {
+            playback_audio_file(audio_buf._90_00_wav_audio_buf, audio_buf._90_00_wav_audio_len, audio_volume, skippable);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "playback_audio_file() err: %s", esp_err_to_name(err));
+            }
+        }
+
+        free_90_00_wav();
+    }
+
+    if (audio_buf.percent_completed_00_wav_audio_buf == NULL)
+    {
+        err = malloc_percent_completed_00_wav();
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "malloc_percent_completed_00_wav() err: %s", esp_err_to_name(err));
+        }
+    }
+
+    if (err == ESP_OK)
+    {
+        err = playback_audio_file(audio_buf.percent_completed_00_wav_audio_buf, audio_buf.percent_completed_00_wav_audio_len, audio_volume, skippable);
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "playback_audio_file(percent_completed_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+        }
+    }
+
+    free_percent_completed_00_wav();
+
+    return err;
 }
 
 esp_err_t _i2s_stop(void)

@@ -11,65 +11,71 @@ static const char *TAG = "menu.c";
 
 esp_err_t browse_menu(void)
 {
-    esp_err_t err;
+    esp_err_t err = ESP_OK;
 
-    if (state_machine == TUTORFISH_HOME)
+    if (touch_pad_forward || touch_pad_backward)
     {
-        switch (menu_selection_idx)
+        // set to false to allow playback skipping
+        touch_pad_forward = false;
+        touch_pad_backward = false;
+
+        if (state_machine == TUTORFISH_HOME)
         {
-        case 0:
-
-            if (audio_buf.tutor_fish_settings_00_wav_audio_buf == NULL)
+            switch (menu_selection_idx)
             {
-                err = malloc_tutor_fish_settings_00_wav();
-                if (err != ESP_OK)
-                {
-                    ESP_LOGE(TAG, "malloc_tutor_fish_settings_00_wav() err: %s", esp_err_to_name(err));
-                }
+            case 0:
 
-                if (err == ESP_OK)
+                if (audio_buf.tutor_fish_settings_00_wav_audio_buf == NULL)
                 {
-                    playback_audio_file(audio_buf.tutor_fish_settings_00_wav_audio_buf, audio_buf.tutor_fish_settings_00_wav_len, audio_volume, false);
+                    err = malloc_tutor_fish_settings_00_wav();
                     if (err != ESP_OK)
                     {
-                        ESP_LOGE(TAG, "playback_audio_file(tutor_fish_settings_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                        ESP_LOGE(TAG, "malloc_tutor_fish_settings_00_wav() err: %s", esp_err_to_name(err));
                     }
 
-                    free_tutor_fish_settings_00();
-                }
-            }
+                    if (err == ESP_OK)
+                    {
+                        playback_audio_file(audio_buf.tutor_fish_settings_00_wav_audio_buf, audio_buf.tutor_fish_settings_00_wav_len, audio_volume, true);
+                        if (err != ESP_OK)
+                        {
+                            ESP_LOGE(TAG, "playback_audio_file(tutor_fish_settings_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                        }
 
-            ESP_LOGI(TAG, "browse_menu(): Tutorfish Settings");
-            break;
-        case 1:
-
-            if (audio_buf.submit_a_question_00_wav_audio_buf == NULL)
-            {
-                err = malloc_submit_a_question_00_wav();
-                if (err != ESP_OK)
-                {
-                    ESP_LOGE(TAG, "malloc_tutor_fish_settings_00_wav() err: %s", esp_err_to_name(err));
+                        free_tutor_fish_settings_00();
+                    }
                 }
 
-                if (err == ESP_OK)
+                ESP_LOGI(TAG, "browse_menu(): Tutorfish Settings");
+                break;
+            case 1:
+
+                if (audio_buf.submit_a_question_00_wav_audio_buf == NULL)
                 {
-                    playback_audio_file(audio_buf.submit_a_question_00_wav_audio_buf, audio_buf.submit_a_question_00_wav_len, audio_volume, false);
+                    err = malloc_submit_a_question_00_wav();
                     if (err != ESP_OK)
                     {
-                        ESP_LOGE(TAG, "playback_audio_file(submit_a_question_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                        ESP_LOGE(TAG, "malloc_tutor_fish_settings_00_wav() err: %s", esp_err_to_name(err));
                     }
 
-                    free_submit_a_question_00();
-                }
-            }
+                    if (err == ESP_OK)
+                    {
+                        playback_audio_file(audio_buf.submit_a_question_00_wav_audio_buf, audio_buf.submit_a_question_00_wav_len, audio_volume, true);
+                        if (err != ESP_OK)
+                        {
+                            ESP_LOGE(TAG, "playback_audio_file(submit_a_question_00_wav_audio_buf) err: %s", esp_err_to_name(err));
+                        }
 
-            ESP_LOGI(TAG, "browse_menu(): Submit Question");
-            break;
-        default:
-            break;
+                        free_submit_a_question_00();
+                    }
+                }
+
+                ESP_LOGI(TAG, "browse_menu(): Submit Question");
+                break;
+            default:
+                break;
+            }
         }
     }
-
     return ESP_OK;
 }
 

@@ -5,7 +5,9 @@ esp_err_t init_i2s(void);
 esp_err_t _i2s_stop(void);
 esp_err_t playback_audio_file(int16_t *audio_file_buf, int audio_file_len, float audio_volume, bool audio_playback_stoppable);
 esp_err_t play_submit_question_instructions(void);
+esp_err_t playback_confirm_sfx_04(bool skippable);
 esp_err_t playback_error_message(void);
+esp_err_t playback_returning_home_wav(void);
 
 esp_err_t malloc_returning_home_wav(void);
 void free_returning_home_wav(void);
@@ -60,6 +62,41 @@ void free_tutors_look_for_answer_00_wav(void);
 esp_err_t malloc_wait_app_loads_00_wav(void);
 void free_wait_app_loads_00_wav(void);
 
+esp_err_t malloc_ascii_5_00_wav(void);
+void free_ascii_5_00_wav(void);
+
+////
+
+esp_err_t malloc_percent_completed_00_wav(void);
+void free_percent_completed_00_wav(void);
+
+esp_err_t malloc_10_00_wav(void);
+void free_10_00_wav(void);
+
+esp_err_t malloc_20_00_wav(void);
+void free_20_00_wav(void);
+
+esp_err_t malloc_30_00_wav(void);
+void free_30_00_wav(void);
+
+esp_err_t malloc_40_00_wav(void);
+void free_40_00_wav(void);
+
+esp_err_t malloc_50_00_wav(void);
+void free_50_00_wav(void);
+
+esp_err_t malloc_60_00_wav(void);
+void free_60_00_wav(void);
+
+esp_err_t malloc_70_00_wav(void);
+void free_70_00_wav(void);
+
+esp_err_t malloc_80_00_wav(void);
+void free_80_00_wav(void);
+
+esp_err_t malloc_90_00_wav(void);
+void free_90_00_wav(void);
+
 
 typedef struct
 {
@@ -108,6 +145,9 @@ typedef struct
     int tutors_look_for_answer_00_wav_len;
 
     // system audio
+    int16_t *confirm_sfx_04_wav_audio_buf;
+    int confirm_sfx_04_wav_audio_len;
+
     int16_t *returning_home_wav_audio_buf;
     int returning_home_wav_audio_len;
 
@@ -128,6 +168,39 @@ typedef struct
 
     int16_t *wait_app_loads_00_wav_audio_buf;
     int wait_app_loads_00_wav_audio_len;
+
+    int16_t *percent_completed_00_wav_audio_buf;
+    int percent_completed_00_wav_audio_len;
+
+    int16_t *ascii_5_00_wav_audio_buf;
+    int ascii_5_00_wav_audio_len;
+
+    int16_t *_10_00_wav_audio_buf;
+    int _10_00_wav_audio_len;
+
+    int16_t *_20_00_wav_audio_buf;
+    int _20_00_wav_audio_len;
+
+    int16_t *_30_00_wav_audio_buf;
+    int _30_00_wav_audio_len;
+
+    int16_t *_40_00_wav_audio_buf;
+    int _40_00_wav_audio_len;
+
+    int16_t *_50_00_wav_audio_buf;
+    int _50_00_wav_audio_len;
+
+    int16_t *_60_00_wav_audio_buf;
+    int _60_00_wav_audio_len;
+
+    int16_t *_70_00_wav_audio_buf;
+    int _70_00_wav_audio_len;
+
+    int16_t *_80_00_wav_audio_buf;
+    int _80_00_wav_audio_len;
+
+    int16_t *_90_00_wav_audio_buf;
+    int _90_00_wav_audio_len;
     
 } audio_buf_t;
 

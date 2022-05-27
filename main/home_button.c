@@ -3,6 +3,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
+#include "esp_sleep.h"
+
 #include "audio_io.h"
 //#include "http_request.h"
 #include "state_machine.h"
@@ -13,11 +15,10 @@
 #include "blue_led.h"
 #include "menu.h"
 #include "init_variables.h"
+#include "home_button.h"
 
 //#include "esp_intr_alloc.h"
 #define ESP_INTR_FLAG_DEFAULT (0)
-
-#define GPIO_HOME_BUTTON (37)
 
 static const char *TAG = "home_button";
 
@@ -26,9 +27,46 @@ static TaskHandle_t gpio_task_example_handle = NULL;
 
 static bool button_pressed = false;
 
+static esp_err_t reset_home_button(void)
+{
+    gpio_config_t io_conf = {
+        .intr_type = GPIO_INTR_NEGEDGE,           // interrupt on falling edge
+        .mode = GPIO_MODE_INPUT,                  // set as input mode
+        .pin_bit_mask = 1ULL << GPIO_HOME_BUTTON, // bit mask of the pins that you want to set
+        .pull_up_en = GPIO_PULLUP_DISABLE         // disable pull-up mode (pulled up by resistor)
+    };
+
+    // configure GPIO with the given settings
+    esp_err_t err = gpio_config(&io_conf);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "gpio_config() err: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    return err;
+}
+
 static void handle_single_press(void)
 {
     esp_err_t err;
+
+    if (gpio_wakeup_enabled == true)
+    {
+        err = reset_home_button();
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "select_app() err: %s", esp_err_to_name(err));
+            return err;
+        }
+        gpio_wakeup_enabled = false;
+        return;
+    }
+
+    if (audio_buf.system_i2s_playing)
+    {
+        audio_buf.system_i2s_stop = true;
+    }
 
     if (state_machine == TUTORFISH_HOME)
     {
@@ -44,27 +82,28 @@ static void handle_double_press(void)
 {
     esp_err_t err;
 
+    if (gpio_wakeup_enabled == true)
+    {
+        err = reset_home_button();
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "select_app() err: %s", esp_err_to_name(err));
+            return err;
+        }
+        gpio_wakeup_enabled = false;
+        return;
+    }
+
+    if (audio_buf.system_i2s_playing)
+    {
+        audio_buf.system_i2s_stop = true;
+    }
+
+    // return to pillar home
+    // TODO : ask the user if they are sure they want to return, press the home button once to confirm
     if (state_machine == TUTORFISH_HOME)
     {
-        if (audio_buf.returning_home_wav_audio_buf == NULL)
-        {
-            err = malloc_returning_home_wav();
-            if (err != ESP_OK)
-            {
-                ESP_LOGE(TAG, "malloc_returning_home_wav() err: %s", esp_err_to_name(err));
-            }
-
-            if (err == ESP_OK)
-            {
-                playback_audio_file(audio_buf.returning_home_wav_audio_buf, audio_buf.returning_home_wav_audio_len, audio_volume, false);
-                if (err != ESP_OK)
-                {
-                    ESP_LOGE(TAG, "playback_audio_file(returning_home_wav_audio_buf) err: %s", esp_err_to_name(err));
-                }
-
-                free_returning_home_wav();
-            }
-        }
+        playback_returning_home_wav();
 
         if (audio_buf.wait_app_loads_00_wav_audio_buf == NULL)
         {
@@ -119,28 +158,9 @@ static void handle_double_press(void)
             ESP_LOGE(TAG, "stop_wifi() err: %s", esp_err_to_name(err));
         }
     }
-
     else if (state_machine == TUTORFISH_SETTINGS)
     {
-        if (audio_buf.returning_home_wav_audio_buf == NULL)
-        {
-            err = malloc_returning_home_wav();
-            if (err != ESP_OK)
-            {
-                ESP_LOGE(TAG, "malloc_returning_home_wav() err: %s", esp_err_to_name(err));
-            }
-
-            if (err == ESP_OK)
-            {
-                playback_audio_file(audio_buf.returning_home_wav_audio_buf, audio_buf.returning_home_wav_audio_len, audio_volume, false);
-                if (err != ESP_OK)
-                {
-                    ESP_LOGE(TAG, "playback_audio_file(returning_home_wav_audio_buf) err: %s", esp_err_to_name(err));
-                }
-
-                free_returning_home_wav();
-            }
-        }
+        playback_returning_home_wav();
 
         tutorfish_settings_init = false;
         tutorfish_home_init = false;
@@ -243,6 +263,13 @@ esp_err_t init_home_button(void)
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "gpio_config() err: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    err = esp_sleep_enable_gpio_wakeup();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE("setup_sleep()", "esp_sleep_enable_gpio_wakeup() error: %s", esp_err_to_name(err));
         return err;
     }
 
